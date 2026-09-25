@@ -173,12 +173,44 @@ export interface AiManagedConnectionSummary {
   status: "connected" | "needs_attention" | "expired" | "revoked";
   unavailableReason?: string;
 }
+/**
+ * A gateway (LiteLLM, a corporate proxy) that an API key belongs to. The key is
+ * only valid there, so the endpoint is part of the credential, never an agent
+ * routing override. Headers are stored in plain connection config: they are for
+ * routing and attribution, and cannot carry credentials.
+ */
+export const AI_GATEWAY_PROVIDERS = ["anthropic", "openai"] as const;
+const CREDENTIAL_HEADER_RE = /^(authorization|proxy-authorization|x-api-key|api-key|cookie)$/i;
+export const aiConnectionEndpointSchema = z
+  .object({
+    baseUrl: z
+      .string()
+      .trim()
+      .url()
+      .max(2048)
+      .refine((url) => /^https?:\/\//i.test(url), "Use an http or https URL")
+      .transform((url) => url.replace(/\/+$/, "")),
+    headers: z
+      .record(
+        z
+          .string()
+          .regex(/^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,128}$/, "Invalid header name")
+          .refine((name) => !CREDENTIAL_HEADER_RE.test(name), "Put credentials in the API key, not in headers"),
+        z.string().max(1024).regex(/^[^\r\n]*$/, "Header values cannot contain line breaks"),
+      )
+      .refine((headers) => Object.keys(headers).length <= 20, "Use at most 20 headers")
+      .optional(),
+  })
+  .strict();
+export type AiConnectionEndpoint = z.infer<typeof aiConnectionEndpointSchema>;
+
 export const createAiConnectionSchema = z
   .object({
     ...requirement,
     name: z.string().trim().min(1).max(160),
     ownership: z.enum(["personal", "shared"]),
     apiKey: z.string().trim().min(1).max(32768).optional(),
+    endpoint: aiConnectionEndpointSchema.optional(),
     loginSessionId: z.string().max(128).optional(),
     connectionId: z.string().uuid().optional(),
     agentIds: z.array(z.string().uuid()).max(1000).default([]),
@@ -199,6 +231,16 @@ export const createAiConnectionSchema = z
           "Provide exactly the credential for the selected sign-in method",
       });
     }
+    if (
+      v.endpoint &&
+      (v.method !== "api_key" ||
+        !(AI_GATEWAY_PROVIDERS as readonly string[]).includes(v.provider))
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["endpoint"],
+        message: "A custom endpoint needs a Claude or OpenAI API key",
+      });
   });
 export type CreateAiConnection = z.infer<typeof createAiConnectionSchema>;
 
@@ -236,4 +278,10 @@ export function aiSubscriptionNeedsIsolatedLogin(config: Record<string, unknown>
   return metadata.success && metadata.data.method === "subscription" &&
     (metadata.data.provider === "openai" || metadata.data.provider === "xai") &&
     config?.aiIsolatedSubscription !== true;
+}
+
+/** The stored gateway endpoint of an API-key connection, if any. Throws on a
+ * malformed value so a run never falls back to the provider's public API. */
+export function aiConnectionEndpoint(config: Record<string, unknown> | undefined): AiConnectionEndpoint | undefined {
+  return config?.aiEndpoint === undefined ? undefined : aiConnectionEndpointSchema.parse(config.aiEndpoint);
 }

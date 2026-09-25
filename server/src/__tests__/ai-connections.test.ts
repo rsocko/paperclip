@@ -15,7 +15,7 @@ import * as executionTarget from "@paperclipai/adapter-utils/execution-target";
 import { prepareManagedAiRuntime, assertManagedAiProjectAuth } from "../services/ai-connection-runtime.js";
 import { toolAccessService } from "../services/tool-access.js";
 import { secretService } from "../services/secrets.js";
-import { aiConnectionBindingSchema, connectionPurposeTransportSchema, isAiConnectionCompatible } from "@paperclipai/shared";
+import { aiConnectionBindingSchema, connectionPurposeTransportSchema, createAiConnectionSchema, isAiConnectionCompatible } from "@paperclipai/shared";
 import express from "express";
 import request from "supertest";
 import { aiConnectionRoutes, canInstallSharedAiConnectionForNewAgent, responsibleUserForAiRequest } from "../routes/ai-connections.js";
@@ -675,6 +675,75 @@ describe("managed AI connections", () => {
       expect(JSON.stringify(saved.body)).not.toContain("isolated-fixture-token");
       expect((await service.list(companyId, owner)).filter(c => c.name === intent.name)).toHaveLength(1);
     } finally { reader.mockRestore(); }
+  });
+  describe("custom gateway endpoints", () => {
+    const endpoint = { baseUrl: "https://gateway.example/", headers: { "x-team": "platform" } };
+    const shared = (provider: "anthropic" | "openai", name: string) =>
+      service.save(companyId, "alice", { provider, method: "api_key", ownership: "shared", name, apiKey: "fixture", endpoint: createAiConnectionSchema.parse({ provider, method: "api_key", ownership: "shared", name, apiKey: "fixture", endpoint }).endpoint, agentIds: [], allAgents: true }, `gateway-key-${provider}`);
+
+    it("routes a Claude run to the connection's gateway and keeps agent headers", async () => {
+      const created = await shared("anthropic", "Claude gateway");
+      const run = await prepareManagedAiRuntime(db, { ...input, responsibleUserId: "bob", binding: { ...binding, mode: "shared", ...created }, config: { model: "claude-opus-5", env: { ANTHROPIC_CUSTOM_HEADERS: "x-repo: paperclip" } } });
+      const env = run.config.env as Record<string, string>;
+      expect(env.ANTHROPIC_BASE_URL).toBe("https://gateway.example");
+      expect(env.ANTHROPIC_API_KEY).toBe("gateway-key-anthropic");
+      expect(env.ANTHROPIC_CUSTOM_HEADERS).toBe("x-repo: paperclip\nx-team: platform");
+      await run.cleanup();
+    });
+
+    it("writes a Codex model provider for the gateway into the private home", async () => {
+      const created = await shared("openai", "OpenAI gateway");
+      const run = await prepareManagedAiRuntime(db, { ...input, adapterType: "codex_local", responsibleUserId: "bob", binding: { provider: "openai", method: "api_key", mode: "shared", ...created }, config: { cwd: home, model: "gpt-5" } });
+      const env = run.config.env as Record<string, string>;
+      const toml = await readFile(path.join(env.CODEX_HOME, "config.toml"), "utf8");
+      expect(toml).toBe([
+        'cli_auth_credentials_store = "file"',
+        'model_provider = "paperclip_gateway"',
+        "",
+        "[model_providers.paperclip_gateway]",
+        'name = "OpenAI gateway"',
+        'base_url = "https://gateway.example"',
+        'env_key = "OPENAI_API_KEY"',
+        'wire_api = "responses"',
+        'http_headers = { x-team = "platform" }',
+        "",
+      ].join("\n"));
+      expect(env.OPENAI_API_KEY).toBe("gateway-key-openai");
+      expect(env.OPENAI_BASE_URL).toBe("");
+      await run.cleanup();
+    });
+
+    it("leaves connections without an endpoint on the provider's own API", async () => {
+      const created = await create("alice", "No gateway", "shared");
+      const run = await prepareManagedAiRuntime(db, { ...input, responsibleUserId: "bob", binding: { ...binding, mode: "shared", ...created }, config: { model: "m" } });
+      expect((run.config.env as Record<string, string>).ANTHROPIC_BASE_URL).toBe("");
+      await run.cleanup();
+    });
+
+    it("still rejects routing set on the agent instead of the connection", async () => {
+      const created = await shared("anthropic", "Claude gateway override");
+      await expect(prepareManagedAiRuntime(db, { ...input, responsibleUserId: "bob", binding: { ...binding, mode: "shared", ...created }, config: { env: { ANTHROPIC_BASE_URL: "https://elsewhere.example" } } })).rejects.toThrow("provider routing");
+    });
+
+    it("verifies the key against the gateway through the network guard", async () => {
+      const request = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+      await validateAiApiKey("anthropic", "gw", request, { endpoint: { baseUrl: "http://93.184.216.34:4000", headers: { "x-team": "platform" } }, allowPrivateNetwork: false });
+      expect(request.mock.calls[0][0]).toBe("http://93.184.216.34:4000/v1/models?limit=1");
+      expect(request.mock.calls[0][1].headers).toMatchObject({ "x-api-key": "gw", "x-team": "platform" });
+      await validateAiApiKey("openai", "gw", request, { endpoint: { baseUrl: "http://93.184.216.34:4000/v1" }, allowPrivateNetwork: false });
+      expect(request.mock.calls[1][0]).toBe("http://93.184.216.34:4000/v1/models");
+      await expect(validateAiApiKey("anthropic", "gw", request, { endpoint: { baseUrl: "http://10.0.0.5:4000" }, allowPrivateNetwork: false })).rejects.toThrow("private");
+      expect(request).toHaveBeenCalledTimes(2);
+    });
+
+    it("accepts endpoints only for Claude and OpenAI API keys, without credential headers", () => {
+      const base = { name: "g", ownership: "shared", apiKey: "k", endpoint: { baseUrl: "https://g.example" } } as const;
+      expect(createAiConnectionSchema.safeParse({ ...base, provider: "anthropic", method: "api_key" }).success).toBe(true);
+      expect(createAiConnectionSchema.safeParse({ ...base, provider: "openrouter", method: "api_key" }).success).toBe(false);
+      expect(createAiConnectionSchema.safeParse({ ...base, apiKey: undefined, loginSessionId: "s", provider: "anthropic", method: "subscription" }).success).toBe(false);
+      expect(createAiConnectionSchema.safeParse({ ...base, provider: "openai", method: "api_key", endpoint: { baseUrl: "ftp://g.example" } }).success).toBe(false);
+      expect(createAiConnectionSchema.safeParse({ ...base, provider: "openai", method: "api_key", endpoint: { baseUrl: "https://g.example", headers: { Authorization: "Bearer x" } } }).success).toBe(false);
+    });
   });
   it("rejects invalid credentials without exposing the provider response", async () => {
     const request = vi.fn().mockResolvedValue(new Response("secret-provider-body", { status: 401 }));

@@ -650,6 +650,7 @@ export function aiConnectionService(db: Db) {
               sourceTemplateKey: input.provider,
               ai: { provider: input.provider, method: input.method },
               aiIsolatedSubscription: input.method === "subscription" && input.provider !== "anthropic",
+              ...("endpoint" in input && input.endpoint ? { aiEndpoint: input.endpoint } : {}),
             },
             createdByUserId: userId,
           });
@@ -770,7 +771,12 @@ export function aiConnectionService(db: Db) {
           : "ai_connection.connected",
         entityType: "tool_connection",
         entityId: id,
-        details: { provider: input.provider, method: input.method, grantId },
+        details: {
+          provider: input.provider,
+          method: input.method,
+          grantId,
+          ...("endpoint" in input && input.endpoint ? { endpointBaseUrl: input.endpoint.baseUrl } : {}),
+        },
       });
       return { connectionId: id, grantId };
     });
