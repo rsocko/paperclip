@@ -19,6 +19,7 @@ import {
 } from "@paperclipai/db";
 import {
   AI_CONNECTION_CAPABILITIES,
+  aiConnectionEndpointSchema,
   aiConnectionMetadataSchema,
   aiSubscriptionNeedsIsolatedLogin,
   isAiConnectionCompatible,
@@ -124,6 +125,7 @@ export function aiConnectionService(db: Db) {
       );
       if (!metadata.success) return [];
       const needsReconnect = aiSubscriptionNeedsIsolatedLogin(connection.config);
+      const endpointBaseUrl = aiConnectionEndpointSchema.safeParse(connection.config.aiEndpoint).data?.baseUrl;
       if (!canUseCredential(grant, userId, members.filter((m) => m.grantId === grant.id)))
         return [];
       return [
@@ -134,6 +136,7 @@ export function aiConnectionService(db: Db) {
           ...metadata.data,
           name: connection.name,
           accountLabel: grant.providerTenant?.name,
+          ...(endpointBaseUrl ? { endpointBaseUrl } : {}),
           ...(needsReconnect ? { unavailableReason: "Reconnect with a separate sign-in to protect your existing terminal login." } : {}),
           ownership:
             grant.kind === "user" ? ("personal" as const) : ("shared" as const),
@@ -434,6 +437,8 @@ export function aiConnectionService(db: Db) {
     verifiedCredential: string,
     sessionId?: string,
     attemptStartedAt = new Date(),
+    /** Set by the route from the deployment: runs must re-check the gateway address. */
+    endpointPublicOnly = false,
   ) {
     if (!(await membership(companyId, userId)))
       throw forbidden("An active company member must own this connection");
@@ -650,7 +655,9 @@ export function aiConnectionService(db: Db) {
               sourceTemplateKey: input.provider,
               ai: { provider: input.provider, method: input.method },
               aiIsolatedSubscription: input.method === "subscription" && input.provider !== "anthropic",
-              ...("endpoint" in input && input.endpoint ? { aiEndpoint: input.endpoint } : {}),
+              ...("endpoint" in input && input.endpoint
+                ? { aiEndpoint: input.endpoint, ...(endpointPublicOnly ? { aiEndpointPublicOnly: true } : {}) }
+                : {}),
             },
             createdByUserId: userId,
           });

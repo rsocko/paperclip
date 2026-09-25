@@ -194,7 +194,7 @@ export function aiConnectionRoutes(db: Db, options: Parameters<typeof supportsLo
   }
   const router = Router();
   const service = aiConnectionService(db);
-  async function storedAiEndpoint(companyId: string, connectionId: string) {
+  async function storedAiConnection(companyId: string, connectionId: string) {
     const [connection] = await db
       .select({ config: toolConnections.config })
       .from(toolConnections)
@@ -205,8 +205,17 @@ export function aiConnectionRoutes(db: Db, options: Parameters<typeof supportsLo
           eq(toolConnections.connectionPurpose, "ai"),
         ),
       );
-    return aiConnectionEndpoint(connection?.config);
+    if (!connection) throw notFound("AI connection not found");
+    return {
+      provider: (connection.config.ai as { provider?: unknown } | undefined)?.provider,
+      endpoint: aiConnectionEndpoint(connection.config),
+    };
   }
+  // Same policy as remote MCP URLs: only public authenticated deployments are
+  // kept off private networks.
+  const allowPrivateNetwork =
+    options.deploymentMode !== "authenticated" ||
+    options.deploymentExposure !== "public";
   const localLogin = localAiLoginService(db);
   function assertLocalOperator(req: Request) {
     assertBoard(req);
@@ -317,22 +326,19 @@ export function aiConnectionRoutes(db: Db, options: Parameters<typeof supportsLo
         );
       if (input.connectionId && input.endpoint)
         throw unprocessable("Reconnect cannot change the endpoint");
-      const endpoint = input.connectionId
-        ? await storedAiEndpoint(companyId, input.connectionId)
-        : input.endpoint;
+      // Never send a new key anywhere before the reconnect target is confirmed.
+      const stored = input.connectionId
+        ? await storedAiConnection(companyId, input.connectionId)
+        : undefined;
+      if (stored && stored.provider !== input.provider)
+        throw unprocessable("Reconnect cannot change providers");
+      const endpoint = stored ? stored.endpoint : input.endpoint;
       const attemptStartedAt = new Date();
       await validateAiApiKey(
         input.provider,
         input.apiKey!,
         fetch,
-        endpoint && {
-          endpoint,
-          // Same policy as remote MCP URLs: only public authenticated
-          // deployments are kept off private networks.
-          allowPrivateNetwork:
-            options.deploymentMode !== "authenticated" ||
-            options.deploymentExposure !== "public",
-        },
+        endpoint && { endpoint, allowPrivateNetwork },
       );
       const result = await service.save(
         companyId,
@@ -341,6 +347,7 @@ export function aiConnectionRoutes(db: Db, options: Parameters<typeof supportsLo
         input.apiKey!,
         undefined,
         attemptStartedAt,
+        !allowPrivateNetwork,
       );
       res.status(201).json(result);
     },

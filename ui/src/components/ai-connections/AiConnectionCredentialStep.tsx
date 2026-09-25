@@ -136,6 +136,9 @@ function ApiKeyConnectionStep({ companyId, provider, connectionId, name: initial
     onSuccess: (result) => { void client.invalidateQueries({ queryKey: ["ai-connections", companyId] }); onComplete({ ...result, method: "api_key" }); },
     onSettled: () => setApiKey(""),
   });
+  const canSubmit = Boolean(name.trim() && apiKey.trim()) && !save.isPending &&
+    !(gateway && (!baseUrl.trim() || typeof headers === "string"));
+  const submit = () => { if (canSubmit) save.mutate(); };
   return <div className="mx-auto w-full min-w-0 max-w-xl space-y-4">
     {!hideName && <label className="block space-y-2 text-sm">Connection name<Input value={name} onChange={(event) => setName(event.target.value)} disabled={Boolean(connectionId)} /></label>}
     {gateway && <>
@@ -150,7 +153,7 @@ function ApiKeyConnectionStep({ companyId, provider, connectionId, name: initial
       </label>}
     </>}
     {save.error && <p role="alert" className="text-sm text-destructive">{save.error.message}</p>}
-    <ProviderApiKeyCard providerName={gateway ? "gateway" : "OpenRouter"} value={apiKey} onChange={setApiKey} onSubmit={() => save.mutate()} disabled={save.isPending} placeholder="Enter API key here" autoFocus={!gateway} />
-    <div className="flex justify-between gap-2"><Button variant="ghost" onClick={onCancel}>{gateway && !gatewayBaseUrl ? "Back" : "Cancel"}</Button><Button disabled={!name.trim() || !apiKey.trim() || (gateway && (!baseUrl.trim() || typeof headers === "string")) || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Connecting…" : "Connect"}</Button></div>
+    <ProviderApiKeyCard providerName={gateway ? "gateway" : "OpenRouter"} value={apiKey} onChange={setApiKey} onSubmit={submit} disabled={save.isPending} placeholder="Enter API key here" autoFocus={!gateway} />
+    <div className="flex justify-between gap-2"><Button variant="ghost" onClick={onCancel}>{gateway && !gatewayBaseUrl ? "Back" : "Cancel"}</Button><Button disabled={!canSubmit} onClick={submit}>{save.isPending ? "Connecting…" : "Connect"}</Button></div>
   </div>;
 }

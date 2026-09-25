@@ -11,6 +11,7 @@ import {
   type AiConnectionBinding,
 } from "@paperclipai/shared";
 import { aiConnectionService } from "./ai-connections.js";
+import { assertPublicRemoteHttpEndpoint } from "./remote-http-endpoint-guard.js";
 import { secretService } from "./secrets.js";
 import { decideCodexAuthMerge, renderCodexModelProviderToml } from "@paperclipai/adapter-codex-local/server";
 import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
@@ -272,6 +273,15 @@ export async function prepareManagedAiRuntime(
       ]!;
     const authFile = path.join(providerHome, "auth.json");
     const endpoint = aiConnectionEndpoint(selection.connection.config);
+    // The CLI resolves the host itself, so re-check the current answer before
+    // each run. ponytail: a rebind between this check and the CLI's own lookup
+    // is still possible; closing it fully needs network confinement of the CLI.
+    if (endpoint && selection.connection.config.aiEndpointPublicOnly === true)
+      await assertPublicRemoteHttpEndpoint(
+        new URL(endpoint.baseUrl),
+        { allowPrivateNetwork: false },
+        (message, code) => unprocessable(message.replace("Remote MCP connection", "The AI gateway"), { code }),
+      );
     if (input.binding.provider === "openai")
       await writeFile(
         path.join(providerHome, "config.toml"),

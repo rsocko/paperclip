@@ -116,13 +116,17 @@ POST /api/companies/:companyId/ai-connections
   (`ANTHROPIC_BASE_URL`), and a base that includes `/v1` for OpenAI (a Codex
   `model_providers` `base_url`).
 - `headers` are routing or attribution headers. They are stored as plain
-  connection config, so credential headers (`Authorization`, `x-api-key`, …) are
-  rejected. The key belongs in `apiKey`, which is encrypted like any other AI key.
+  connection config, so credential headers (`Authorization`, `x-api-key`, …) and
+  credentials in the URL (`user:pass@`) are rejected. `X-Anthropic-Agent-Id` is
+  reserved, so a connection cannot override per-agent attribution. The key belongs
+  in `apiKey`, which is encrypted like any other AI key.
 - Creating the connection verifies the key against the gateway's model list
   through the remote-endpoint network guard. Private addresses are refused only on
-  authenticated public deployments, the same rule as remote MCP URLs.
-- A reconnect replaces the key and keeps the stored endpoint. To move to a
-  different gateway, create a new connection.
+  authenticated public deployments, the same rule as remote MCP URLs. On those
+  deployments the gateway address is checked again before each run.
+- A reconnect replaces the key and keeps the stored endpoint. It checks the stored
+  provider before the new key is sent anywhere. To move to a different gateway,
+  create a new connection.
 
 At run time, a Claude run gets `ANTHROPIC_BASE_URL` and the headers appended to
 `ANTHROPIC_CUSTOM_HEADERS`. The per-agent `X-Anthropic-Agent-Id` header is still
