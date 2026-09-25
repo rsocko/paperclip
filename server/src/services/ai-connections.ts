@@ -437,8 +437,6 @@ export function aiConnectionService(db: Db) {
     verifiedCredential: string,
     sessionId?: string,
     attemptStartedAt = new Date(),
-    /** Set by the route from the deployment: runs must re-check the gateway address. */
-    endpointPublicOnly = false,
   ) {
     if (!(await membership(companyId, userId)))
       throw forbidden("An active company member must own this connection");
@@ -655,9 +653,7 @@ export function aiConnectionService(db: Db) {
               sourceTemplateKey: input.provider,
               ai: { provider: input.provider, method: input.method },
               aiIsolatedSubscription: input.method === "subscription" && input.provider !== "anthropic",
-              ...("endpoint" in input && input.endpoint
-                ? { aiEndpoint: input.endpoint, ...(endpointPublicOnly ? { aiEndpointPublicOnly: true } : {}) }
-                : {}),
+              ...("endpoint" in input && input.endpoint ? { aiEndpoint: input.endpoint } : {}),
             },
             createdByUserId: userId,
           });

@@ -12,7 +12,7 @@ import { createDb, companies, agents, heartbeatRuns, companyMemberships, connect
 import { startEmbeddedPostgresTestDatabase } from "@paperclipai/db/test-embedded-postgres";
 import { aiConnectionService } from "../services/ai-connections.js";
 import * as executionTarget from "@paperclipai/adapter-utils/execution-target";
-import { prepareManagedAiRuntime, assertManagedAiProjectAuth } from "../services/ai-connection-runtime.js";
+import { prepareManagedAiRuntime, assertManagedAiProjectAuth, setAiGatewayNetworkPolicy } from "../services/ai-connection-runtime.js";
 import { toolAccessService } from "../services/tool-access.js";
 import { secretService } from "../services/secrets.js";
 import { aiConnectionBindingSchema, connectionPurposeTransportSchema, createAiConnectionSchema, isAiConnectionCompatible } from "@paperclipai/shared";
@@ -763,10 +763,17 @@ describe("managed AI connections", () => {
       } finally { network.mockRestore(); }
     });
 
-    it("re-checks the gateway address before each run on a public deployment", async () => {
-      const privateEndpoint = { baseUrl: "http://10.0.0.5:4000" };
-      const created = await service.save(companyId, "alice", { provider: "anthropic", method: "api_key", ownership: "shared", name: "Private gateway", apiKey: "k", endpoint: privateEndpoint, agentIds: [], allAgents: true }, "k", undefined, new Date(), true);
-      await expect(prepareManagedAiRuntime(db, { ...input, responsibleUserId: "bob", binding: { ...binding, mode: "shared", ...created }, config: { model: "m" } })).rejects.toThrow("private");
+    it("re-checks the gateway address before each run using the current deployment policy", async () => {
+      const created = await service.save(companyId, "alice", { provider: "anthropic", method: "api_key", ownership: "shared", name: "Private gateway", apiKey: "k", endpoint: { baseUrl: "http://10.0.0.5:4000" }, agentIds: [], allAgents: true }, "k");
+      const run = (policy: boolean) => {
+        setAiGatewayNetworkPolicy({ allowPrivateNetwork: policy });
+        return prepareManagedAiRuntime(db, { ...input, responsibleUserId: "bob", binding: { ...binding, mode: "shared", ...created }, config: { model: "m" } });
+      };
+      try {
+        await expect(run(false)).rejects.toThrow("private");
+        // The same connection runs once the deployment allows private networks again.
+        await (await run(true)).cleanup();
+      } finally { setAiGatewayNetworkPolicy({ allowPrivateNetwork: true }); }
     });
   });
   it("rejects invalid credentials without exposing the provider response", async () => {

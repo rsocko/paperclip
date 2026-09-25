@@ -347,7 +347,6 @@ export function aiConnectionRoutes(db: Db, options: Parameters<typeof supportsLo
         input.apiKey!,
         undefined,
         attemptStartedAt,
-        !allowPrivateNetwork,
       );
       res.status(201).json(result);
     },

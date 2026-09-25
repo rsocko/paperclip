@@ -18,6 +18,13 @@ import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/executio
 import { runAdapterExecutionTargetProcess } from "@paperclipai/adapter-utils/execution-target";
 import { decideGrokAuthMerge } from "@paperclipai/adapter-grok-local/server";
 
+// Set at startup from the current deployment, never stored per connection, so a
+// change of exposure takes effect without recreating connections.
+let gatewayAllowsPrivateNetwork = true;
+export function setAiGatewayNetworkPolicy(policy: { allowPrivateNetwork: boolean }) {
+  gatewayAllowsPrivateNetwork = policy.allowPrivateNetwork;
+}
+
 export function isAiConnectionBusy(error: unknown): error is HttpError {
   return error instanceof HttpError && error.status === 422 &&
     (error.details as { code?: unknown } | undefined)?.code === "ai_connection_busy";
@@ -276,7 +283,7 @@ export async function prepareManagedAiRuntime(
     // The CLI resolves the host itself, so re-check the current answer before
     // each run. ponytail: a rebind between this check and the CLI's own lookup
     // is still possible; closing it fully needs network confinement of the CLI.
-    if (endpoint && selection.connection.config.aiEndpointPublicOnly === true)
+    if (endpoint && !gatewayAllowsPrivateNetwork)
       await assertPublicRemoteHttpEndpoint(
         new URL(endpoint.baseUrl),
         { allowPrivateNetwork: false },
