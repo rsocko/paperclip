@@ -24,6 +24,9 @@ let gatewayAllowsPrivateNetwork = true;
 export function setAiGatewayNetworkPolicy(policy: { allowPrivateNetwork: boolean }) {
   gatewayAllowsPrivateNetwork = policy.allowPrivateNetwork;
 }
+export function aiGatewayAllowsPrivateNetwork() {
+  return gatewayAllowsPrivateNetwork;
+}
 
 export function isAiConnectionBusy(error: unknown): error is HttpError {
   return error instanceof HttpError && error.status === 422 &&
@@ -340,6 +343,7 @@ export async function prepareManagedAiRuntime(
         managedAiConnection: { ...selection.attribution, identity },
       },
       attribution: selection.attribution,
+      endpoint,
       accountName: selection.connection.name,
       accountOwnerUserId: selection.grant.subjectUserId,
       identity,
