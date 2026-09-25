@@ -121,9 +121,13 @@ POST /api/companies/:companyId/ai-connections
   reserved, so a connection cannot override per-agent attribution. The key belongs
   in `apiKey`, which is encrypted like any other AI key.
 - Creating the connection verifies the key against the gateway's model list
-  through the remote-endpoint network guard. Private addresses are refused only on
-  authenticated public deployments, the same rule as remote MCP URLs. On those
-  deployments the gateway address is checked again before each run.
+  through the remote-endpoint network guard.
+- Authenticated public deployments do not offer custom endpoints. Claude Code and
+  Codex resolve the gateway host themselves, so no server-side address check can
+  stop a hostname from rebinding to a private or metadata address. Those
+  deployments refuse to create or reconnect a gateway connection, and refuse to
+  run one that was created before the deployment became public. Private and
+  local deployments are unaffected.
 - A reconnect replaces the key and keeps the stored endpoint. It checks the stored
   provider before the new key is sent anywhere. To move to a different gateway,
   create a new connection.

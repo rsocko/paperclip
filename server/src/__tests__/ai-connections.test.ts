@@ -763,17 +763,34 @@ describe("managed AI connections", () => {
       } finally { network.mockRestore(); }
     });
 
-    it("re-checks the gateway address before each run using the current deployment policy", async () => {
-      const created = await service.save(companyId, "alice", { provider: "anthropic", method: "api_key", ownership: "shared", name: "Private gateway", apiKey: "k", endpoint: { baseUrl: "http://10.0.0.5:4000" }, agentIds: [], allAgents: true }, "k");
+    it("refuses gateway runs on public deployments, whatever the host resolves to", async () => {
+      // A public hostname can rebind to a private address after any server-side
+      // check, so the refusal must not depend on DNS.
+      const created = await service.save(companyId, "alice", { provider: "anthropic", method: "api_key", ownership: "shared", name: "Public gateway", apiKey: "k", endpoint: { baseUrl: "https://gateway.example" }, agentIds: [], allAgents: true }, "k");
       const run = (policy: boolean) => {
         setAiGatewayNetworkPolicy({ allowPrivateNetwork: policy });
         return prepareManagedAiRuntime(db, { ...input, responsibleUserId: "bob", binding: { ...binding, mode: "shared", ...created }, config: { model: "m" } });
       };
       try {
-        await expect(run(false)).rejects.toThrow("private");
-        // The same connection runs once the deployment allows private networks again.
+        await expect(run(false)).rejects.toThrow("not available on authenticated public deployments");
+        // The same connection runs once the deployment is private again.
         await (await run(true)).cleanup();
       } finally { setAiGatewayNetworkPolicy({ allowPrivateNetwork: true }); }
+    });
+
+    it("refuses to create a gateway connection on a public deployment before any network call", async () => {
+      const app = express();
+      app.use(express.json());
+      app.use((req, _res, next) => { req.actor = { type: "board", source: "session", userId: "alice", companyIds: [companyId], memberships: [{ companyId, membershipRole: "owner", status: "active" }] }; next(); });
+      app.use("/api", aiConnectionRoutes(db, { deploymentMode: "authenticated", deploymentExposure: "public" }));
+      app.use((error: { status?: number; message: string }, _req: express.Request, res: express.Response, _next: express.NextFunction) => { res.status(error.status ?? 500).json({ error: error.message }); });
+      const network = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("must not reach the gateway"));
+      try {
+        const response = await request(app).post(`/api/companies/${companyId}/ai-connections`).send({ provider: "anthropic", method: "api_key", name: "g", ownership: "shared", apiKey: "k", endpoint: { baseUrl: "https://gateway.example" }, allAgents: true, agentIds: [] });
+        expect(response.status).toBe(422);
+        expect(response.body.error).toContain("public deployments");
+        expect(network).not.toHaveBeenCalled();
+      } finally { network.mockRestore(); }
     });
   });
   it("rejects invalid credentials without exposing the provider response", async () => {

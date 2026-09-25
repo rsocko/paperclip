@@ -333,6 +333,8 @@ export function aiConnectionRoutes(db: Db, options: Parameters<typeof supportsLo
       if (stored && stored.provider !== input.provider)
         throw unprocessable("Reconnect cannot change providers");
       const endpoint = stored ? stored.endpoint : input.endpoint;
+      if (endpoint && !allowPrivateNetwork)
+        throw unprocessable("Custom AI gateway endpoints are not available on authenticated public deployments");
       const attemptStartedAt = new Date();
       await validateAiApiKey(
         input.provider,
