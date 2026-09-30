@@ -75,6 +75,20 @@ const CODEX_AUTH_REQUIRED_RE =
 
 const PROBE_CLEANUP_WARNING = "[paperclip] Codex probe cleanup incomplete";
 
+async function copyManagedProbeConfig(sourceHome: string, probeHome: string): Promise<boolean> {
+  const configPath = path.join(sourceHome, "config.toml");
+  let config: Buffer;
+  try {
+    config = await fs.readFile(configPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+  await fs.mkdir(probeHome, { recursive: true, mode: 0o700 });
+  await fs.writeFile(path.join(probeHome, "config.toml"), config, { mode: 0o600 });
+  return true;
+}
+
 async function prepareCodexHelloProbe(input: {
   runId: string;
   companyId: string;
@@ -213,11 +227,51 @@ async function prepareCodexHelloProbe(input: {
   }
 
   if (input.probeApiKey) {
-    const probeHome = input.targetIsRemote
+    let probeHome = input.targetIsRemote
       ? path.posix.join(input.cwd, ".paperclip-runtime", "codex", `probe-home-${input.runId}`)
       : path.join(os.tmpdir(), `paperclip-codex-probe-${input.runId}`);
     // The local finally path retries cleanup independently of the model result.
     if (!input.targetIsRemote) probeHomeLocalDir = probeHome;
+    const managedSourceHome =
+      input.managedAiConnection && isNonEmpty(input.env.CODEX_HOME)
+        ? input.env.CODEX_HOME.trim()
+        : null;
+    if (managedSourceHome) {
+      try {
+        if (input.targetIsRemote) {
+          probeHomeLocalDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), `paperclip-codex-probe-home-${input.runId}-`),
+          );
+          if (await copyManagedProbeConfig(managedSourceHome, probeHomeLocalDir)) {
+            preparedRuntimeWorkspaceLocalDir = await fs.mkdtemp(
+              path.join(os.tmpdir(), `paperclip-codex-envtest-${input.runId}-`),
+            );
+            preparedRuntime = await prepareAdapterExecutionTargetRuntime({
+              runId: input.runId,
+              target: input.target,
+              adapterKey: "codex",
+              workspaceLocalDir: preparedRuntimeWorkspaceLocalDir,
+              workspaceRemoteDir: input.cwd,
+              installCommand: SANDBOX_INSTALL_COMMAND,
+              detectCommand: input.command,
+              assets: [
+                {
+                  key: "home",
+                  localDir: probeHomeLocalDir,
+                  followSymlinks: true,
+                },
+              ],
+            });
+            probeHome = preparedRuntime.assetDirs.home ?? probeHome;
+          }
+        } else {
+          await copyManagedProbeConfig(managedSourceHome, probeHome);
+        }
+      } catch (error) {
+        await cleanup();
+        throw error;
+      }
+    }
     return {
       command: "sh",
       args: [
@@ -418,8 +472,10 @@ export async function testEnvironment(
       // Codex CLI (>= 0.122) ignores the OPENAI_API_KEY env var and only reads
       // credentials from $CODEX_HOME/auth.json. When we have a key available,
       // wrap the probe with a shell that materializes a per-run auth.json so
-      // the CLI can authenticate. The key content is passed via env (not on
-      // the command line) to avoid leaking it into process listings.
+      // the CLI can authenticate. Managed connections also copy their
+      // config.toml into that isolated home so the probe uses the same provider
+      // as a real run. The key content is passed via env (not on the command
+      // line) to avoid leaking it into process listings.
       const probeApiKey = isNonEmpty(configOpenAiKey)
         ? configOpenAiKey
         : isNonEmpty(hostOpenAiKey)
