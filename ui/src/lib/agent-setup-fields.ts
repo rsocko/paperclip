@@ -6,6 +6,7 @@ import { PROVIDER_ENV_KEYS } from "./provider-credential";
 
 /** Only controls consumed by each adapter's config builder and runtime belong here. */
 export const SETUP_CREDENTIAL_KEYS: Record<string, string> = {
+  copilot_local: "COPILOT_GITHUB_TOKEN",
   cursor: "CURSOR_API_KEY",
   cursor_cloud: "CURSOR_API_KEY",
   gemini_local: "GEMINI_API_KEY",
