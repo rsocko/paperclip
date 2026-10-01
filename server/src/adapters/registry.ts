@@ -60,6 +60,16 @@ import {
 } from "@paperclipai/adapter-cursor-cloud/server";
 import { agentConfigurationDoc as cursorCloudAgentConfigurationDoc } from "@paperclipai/adapter-cursor-cloud";
 import {
+  execute as githubCopilotWebExecute,
+  getConfigSchema as getGitHubCopilotWebConfigSchema,
+  sessionCodec as githubCopilotWebSessionCodec,
+  testEnvironment as githubCopilotWebTestEnvironment,
+} from "@paperclipai/adapter-github-copilot-web/server";
+import {
+  agentConfigurationDoc as githubCopilotWebAgentConfigurationDoc,
+  models as githubCopilotWebModels,
+} from "@paperclipai/adapter-github-copilot-web";
+import {
   execute as geminiExecute,
   listGeminiSkills,
   syncGeminiSkills,
@@ -714,6 +724,21 @@ const cursorCloudAdapter: ServerAdapterModule = {
   getConfigSchema: getCursorCloudConfigSchema,
 };
 
+const githubCopilotWebAdapter: ServerAdapterModule = {
+  type: "github_copilot_web",
+  runtimeToolDelivery: "invocation_context",
+  execute: githubCopilotWebExecute,
+  testEnvironment: githubCopilotWebTestEnvironment,
+  sessionCodec: githubCopilotWebSessionCodec,
+  sessionManagement: getAdapterSessionManagement("github_copilot_web") ?? undefined,
+  models: githubCopilotWebModels,
+  supportsLocalAgentJwt: false,
+  supportsInstructionsBundle: false,
+  requiresMaterializedRuntimeSkills: false,
+  agentConfigurationDoc: githubCopilotWebAgentConfigurationDoc,
+  getConfigSchema: getGitHubCopilotWebConfigSchema,
+};
+
 const geminiLocalAdapter: ServerAdapterModule = {
   type: "gemini_local",
   runtimeToolDelivery: "environment",
@@ -873,6 +898,7 @@ function registerBuiltInAdapters() {
     openCodeLocalAdapter,
     piLocalAdapter,
     cursorCloudAdapter,
+    githubCopilotWebAdapter,
     cursorLocalAdapter,
     geminiLocalAdapter,
     grokLocalAdapter,

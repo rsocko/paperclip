@@ -10,6 +10,7 @@ export default defineConfig({
       "packages/adapters/claude-local",
       "packages/adapters/codex-local",
       "packages/adapters/cursor-cloud",
+      "packages/adapters/github-copilot-web",
       "packages/adapters/cursor-local",
       "packages/adapters/gemini-local",
       "packages/adapters/grok-local",

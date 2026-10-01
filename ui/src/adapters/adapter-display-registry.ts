@@ -132,6 +132,11 @@ const adapterDisplayMap: Record<string, AdapterDisplayInfo> = {
     description: "Managed remote Cursor agent",
     icon: MousePointer2,
   },
+  github_copilot_web: {
+    label: "GitHub Copilot Web Agent",
+    description: "GitHub-hosted Copilot coding agent",
+    icon: Bot,
+  },
   openclaw_gateway: {
     label: "OpenClaw Gateway",
     description: "External gateway adapter",
