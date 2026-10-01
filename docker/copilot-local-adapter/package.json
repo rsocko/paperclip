@@ -1,0 +1,48 @@
+{
+  "name": "@shayben/paperclip-adapter-copilot-local",
+  "version": "0.1.0",
+  "description": "External GitHub Copilot CLI adapter for Paperclip",
+  "type": "module",
+  "license": "MIT",
+  "author": "shayben",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shayben/paperclip-adapter-copilot-local.git",
+    "commit": "69a2c6e399d342ce59cc7d3d27084d936b55a705"
+  },
+  "paperclip": {
+    "adapterUiParser": "1.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./ui-parser": "./dist/ui-parser.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "SOURCE_COMMIT",
+    "SOURCE_ARCHIVE_SHA256"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@paperclipai/adapter-utils": "2026.722.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@9.15.4"
+}

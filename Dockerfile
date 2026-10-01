@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.20
-FROM node:24-trixie-slim AS base
+FROM node:24-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe AS base
 ARG USER_UID=1000
 ARG USER_GID=1000
 RUN apt-get update \
@@ -300,3 +300,52 @@ COPY --chown=node:node --from=cloud-plugins /app/packages/plugins/sandbox-provid
 # both a CommonJS `require.resolve` and an ECMAScript `import` — an entry
 # on `NODE_PATH` would satisfy only the first and silently fail the second.
 COPY --chown=node:node --from=cloud-server-deps /app/.cloud-server-deps/node_modules /app/server/node_modules
+
+# Build the community Copilot adapter from its immutable source archive. The
+# source repository's lock does not match its declared direct dependencies, so
+# this image owns a small, committed lock with exact direct build dependencies.
+FROM base AS copilot-local-adapter-build
+ARG COPILOT_ADAPTER_SOURCE_COMMIT=69a2c6e399d342ce59cc7d3d27084d936b55a705
+ARG COPILOT_ADAPTER_SOURCE_SHA256=820096bc052e68a010253d0effb66d7ea190fd49cdf3cb04087c0fcf4c391bd2
+WORKDIR /tmp/copilot-local-adapter
+RUN set -eux; \
+    curl -fsSLo /tmp/copilot-local-adapter.tar.gz \
+      "https://codeload.github.com/shayben/paperclip-adapter-copilot-local/tar.gz/${COPILOT_ADAPTER_SOURCE_COMMIT}"; \
+    echo "${COPILOT_ADAPTER_SOURCE_SHA256}  /tmp/copilot-local-adapter.tar.gz" | sha256sum -c -; \
+    tar -xzf /tmp/copilot-local-adapter.tar.gz --strip-components=1; \
+    rm /tmp/copilot-local-adapter.tar.gz package-lock.json
+COPY docker/copilot-local-adapter/package.json docker/copilot-local-adapter/pnpm-lock.yaml ./
+RUN set -eux; \
+    pnpm install --ignore-workspace --frozen-lockfile --ignore-scripts; \
+    pnpm test; \
+    pnpm build; \
+    pnpm prune --prod --ignore-scripts; \
+    printf '%s\n' "${COPILOT_ADAPTER_SOURCE_COMMIT}" > SOURCE_COMMIT; \
+    printf '%s\n' "${COPILOT_ADAPTER_SOURCE_SHA256}" > SOURCE_ARCHIVE_SHA256; \
+    test -f dist/index.js; \
+    test -f dist/ui-parser.js; \
+    test -f LICENSE
+
+# Custom deployment image. It preserves the complete production image and adds
+# only Copilot CLI plus the external adapter artifact. Paperclip does not
+# register the adapter automatically; the operator installs the local path once
+# through Settings > Adapters, which writes the normal persistent registration.
+FROM production AS copilot-local
+ARG COPILOT_CLI_VERSION=1.0.90
+ARG COPILOT_ADAPTER_SOURCE_COMMIT=69a2c6e399d342ce59cc7d3d27084d936b55a705
+ENV COPILOT_AUTO_UPDATE=false
+RUN npm install --global --omit=dev --ignore-scripts "@github/copilot@${COPILOT_CLI_VERSION}"
+COPY --from=copilot-local-adapter-build /tmp/copilot-local-adapter /opt/paperclip/adapters/copilot-local
+COPY scripts/assert-copilot-local-image.sh /usr/local/bin/assert-copilot-local-image
+RUN set -eux; \
+    chmod 0555 /usr/local/bin/assert-copilot-local-image; \
+    find /opt/paperclip/adapters/copilot-local -type d -exec chmod 0555 {} +; \
+    find /opt/paperclip/adapters/copilot-local -type f -exec chmod 0444 {} +; \
+    COPILOT_CLI_VERSION="${COPILOT_CLI_VERSION}" \
+      COPILOT_ADAPTER_SOURCE_COMMIT="${COPILOT_ADAPTER_SOURCE_COMMIT}" \
+      /usr/local/bin/assert-copilot-local-image
+LABEL org.opencontainers.image.title="Paperclip with local GitHub Copilot adapter" \
+      io.github.rsocko.paperclip.copilot-cli.version="${COPILOT_CLI_VERSION}" \
+      io.github.rsocko.paperclip.copilot-adapter.version="0.1.0" \
+      io.github.rsocko.paperclip.copilot-adapter.source="https://github.com/shayben/paperclip-adapter-copilot-local" \
+      io.github.rsocko.paperclip.copilot-adapter.revision="${COPILOT_ADAPTER_SOURCE_COMMIT}"
