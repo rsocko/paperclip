@@ -22,6 +22,12 @@ Build arguments:
 | `PAPERCLIP_BUILD_VERSION` | empty | Runtime version when Git metadata is unavailable |
 | `PAPERCLIP_BUILD_COMMIT` | empty | Source commit written into the server build stamp and runtime environment |
 
+The downstream `copilot-local` target adds a pinned GitHub Copilot CLI and a
+read-only external adapter package without changing the standard `production`
+image. See [GitHub Copilot local adapter image](COPILOT-LOCAL-ADAPTER.md) for
+the image contract, one-time local-path installation, secret binding, and
+rollback procedure.
+
 Changing the build version or commit preserves the CLI-install cache. The
 tool layer refreshes when its weekly epoch, base image, installation command,
 or earlier build inputs change. Local builds can set a new epoch explicitly
