@@ -16,6 +16,7 @@ import {
   Terminal,
   Cpu,
 } from "lucide-react";
+import { GithubIcon } from "@/components/icons/github-icon";
 import { OpenCodeLogoIcon } from "@/components/OpenCodeLogoIcon";
 
 // ---------------------------------------------------------------------------
@@ -79,6 +80,11 @@ const adapterDisplayMap: Record<string, AdapterDisplayInfo> = {
     description: "Codex CLI harness",
     icon: Code,
     recommended: true,
+  },
+  copilot_local: {
+    label: "GitHub Copilot",
+    description: "GitHub Copilot CLI harness",
+    icon: GithubIcon,
   },
   paperclip_runner: {
     label: "Paperclip Runner",
