@@ -32,7 +32,7 @@
   {
     "dir": "packages/adapters/github-copilot-web",
     "name": "@paperclipai/adapter-github-copilot-web",
-    "publishFromCi": false
+    "publishFromCi": true
   },
   {
     "dir": "packages/adapters/grok-local",
