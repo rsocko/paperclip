@@ -45,7 +45,7 @@ for excluded in chromium chromium-browser google-chrome playwright terraform tof
   fi
 done
 
-if find "$adapter_path" -perm /022 -print -quit | grep -q .; then
+if find "$adapter_path" \( -type f -o -type d \) -perm /022 -print -quit | grep -q .; then
   echo "Adapter path contains group- or world-writable entries" >&2
   exit 1
 fi
