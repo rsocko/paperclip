@@ -165,6 +165,7 @@ beforeEach(() => {
   state.adapters = [
     "claude_local",
     "codex_local",
+    "copilot_local",
     "opencode_local",
     "pi_local",
     "paperclip_runner", "cursor_cloud", "cursor", "gemini_local", "kimi_local", "grok_local", "hermes_local", "hermes_gateway",
@@ -341,6 +342,49 @@ describe("New agent setup", () => {
     expect(api.testEnvironment.mock.calls[0][2].testCredentials).toEqual({ [key]: "adapter-test-key" });
     expect(api.hire.mock.calls[0][1].adapterConfig.env[key]).toMatchObject({ type: "secret_ref", secretId: "org-secret-1" });
     expect(container.querySelector('[aria-label="Thinking effort"]')).toBeNull();
+  });
+  it("tests and hires Copilot with a Paperclip-managed GitHub token reference", async () => {
+    secrets.list.mockResolvedValue([
+      {
+        id: "copilot-github-token",
+        key: "COPILOT_GITHUB_TOKEN",
+        name: "GitHub Copilot",
+        status: "active",
+      },
+    ]);
+
+    await render("copilot_local");
+    await click("Run test");
+
+    const binding = {
+      type: "secret_ref",
+      secretId: "copilot-github-token",
+      version: "latest",
+    };
+    expect(api.testEnvironment).toHaveBeenCalledWith(
+      "company-1",
+      "copilot_local",
+      expect.objectContaining({
+        adapterConfig: expect.objectContaining({
+          env: { COPILOT_GITHUB_TOKEN: binding },
+        }),
+        testCredentials: {},
+      }),
+    );
+
+    await click("Finish setup");
+
+    expect(api.hire).toHaveBeenCalledWith(
+      "company-1",
+      expect.objectContaining({
+        adapterType: "copilot_local",
+        adapterConfig: expect.objectContaining({
+          env: { COPILOT_GITHUB_TOKEN: binding },
+        }),
+      }),
+    );
+    expect(secrets.create).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Your agent is ready");
   });
   it("defines a Kimi API model without overriding it with a CLI model alias", async () => {
     await render("kimi_local");
