@@ -314,7 +314,8 @@ RUN set -eux; \
     echo "${COPILOT_ADAPTER_SOURCE_SHA256}  /tmp/copilot-local-adapter.tar.gz" | sha256sum -c -; \
     tar -xzf /tmp/copilot-local-adapter.tar.gz --strip-components=1; \
     rm /tmp/copilot-local-adapter.tar.gz package-lock.json
-COPY docker/copilot-local-adapter/package.json docker/copilot-local-adapter/pnpm-lock.yaml ./
+COPY docker/copilot-local-adapter/build-package.json ./package.json
+COPY docker/copilot-local-adapter/pnpm-lock.yaml ./
 RUN set -eux; \
     pnpm install --ignore-workspace --frozen-lockfile --ignore-scripts; \
     pnpm test; \
