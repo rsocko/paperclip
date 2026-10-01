@@ -40,6 +40,7 @@ export const LEGACY_SESSIONED_ADAPTER_TYPES = new Set([
   "claude_local",
   "codex_local",
   "cursor_cloud",
+  "github_copilot_web",
   "cursor",
   "gemini_local",
   "hermes_local",
@@ -60,6 +61,11 @@ export const ADAPTER_SESSION_MANAGEMENT: Record<string, AdapterSessionManagement
     defaultSessionCompaction: ADAPTER_MANAGED_SESSION_POLICY,
   },
   cursor_cloud: {
+    supportsSessionResume: true,
+    nativeContextManagement: "unknown",
+    defaultSessionCompaction: DEFAULT_SESSION_COMPACTION_POLICY,
+  },
+  github_copilot_web: {
     supportsSessionResume: true,
     nativeContextManagement: "unknown",
     defaultSessionCompaction: DEFAULT_SESSION_COMPACTION_POLICY,
