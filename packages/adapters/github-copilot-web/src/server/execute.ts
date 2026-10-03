@@ -136,7 +136,7 @@ function formatApiError(error: unknown): AdapterExecutionResult {
       : error.status === 404
         ? "The configured repository was not found or the user credential cannot access it."
         : error.status === 422
-          ? "GitHub rejected the repository, ref, model, custom agent, or task prompt."
+          ? "GitHub rejected the repository, base branch, model, custom agent, or task prompt."
           : error.status === 429
             ? "GitHub rate-limited Agent Tasks polling."
             : error.message;
@@ -295,7 +295,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const repository = parseRepository(asString(config.repository, ""));
   if (!repository) return failureResult("repository must be an exact GitHub owner/repo value.");
   const baseRef = text(config.baseRef);
-  if (!baseRef) return failureResult("baseRef is required and must name an existing branch.");
+  if (!baseRef) return failureResult("Base branch is required and must name an existing branch.");
   const headRef = text(config.headRef);
   const model = text(config.model);
   if (model && !MODELS.has(model)) return failureResult(`Unsupported GitHub Agent Tasks model "${model}".`);
@@ -338,7 +338,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   });
   const prompt = joinPromptSections([
     marker(key),
-    "Work only in the configured repository and base ref. Do not delegate execution to another orchestrator.",
+    "Work only in the configured repository and base branch. Do not delegate execution to another orchestrator.",
     wakePrompt,
     taskContextNote,
     renderTemplate(promptTemplate, templateData),
@@ -371,7 +371,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         command: `POST /agents/repos/${repository.fullName}/tasks`,
         commandNotes: [
           `Repository: ${repository.fullName}`,
-          `Base ref: ${baseRef}`,
+          `Base branch: ${baseRef}`,
           `Create pull request: ${createPullRequest}`,
           "Authentication: resolved user-to-server credential (redacted)",
         ],

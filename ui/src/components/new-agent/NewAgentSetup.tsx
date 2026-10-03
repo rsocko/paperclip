@@ -421,7 +421,7 @@ function Setup({
     )
       throw new Error("Enter the repository as an exact owner/repo value.");
     if (adapterType === "github_copilot_web" && !branch.trim())
-      throw new Error("Enter an existing base ref.");
+      throw new Error("Enter an existing base branch.");
     if (
       ["cursor_cloud", "github_copilot_web", "hermes_gateway"].includes(adapterType) &&
       !apiKey.trim() &&
@@ -1190,11 +1190,11 @@ function Setup({
                               />
                             </Field>
                             <Field
-                              label="Base ref"
+                              label="Base branch"
                               hint="Enter an existing branch used as the base for every cloud task."
                             >
                               <Input
-                                aria-label="Base ref"
+                                aria-label="Base branch"
                                 placeholder="main"
                                 value={branch}
                                 onChange={(event) => {
