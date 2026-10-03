@@ -59,7 +59,8 @@ import {
 } from "../onboarding/OnboardingPrimitives";
 import { stepMotion } from "../onboarding/onboarding-motion";
 import { RuntimeTestCard, type TestState } from "../RuntimeTestCard";
-import { AgentBasicsDialog, AdapterMark } from "./AgentBasicsDialog";
+import { AdapterMark } from "@/components/AdapterMark";
+import { AgentBasicsDialog } from "./AgentBasicsDialog";
 import {
   AgentProviderConnection,
   type ProviderConnection,

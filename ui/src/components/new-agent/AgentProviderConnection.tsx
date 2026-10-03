@@ -12,7 +12,7 @@ import {
 import { agentsApi } from "@/api/agents";
 import { queryKeys } from "@/lib/queryKeys";
 import { AdapterLoginPanel } from "../AgentConfigForm";
-import { AdapterMark } from "./AgentBasicsDialog";
+import { AdapterMark } from "@/components/AdapterMark";
 import {
   LocalProviderLoginInstructions,
   OnboardingCardField,

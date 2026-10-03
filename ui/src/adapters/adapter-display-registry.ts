@@ -17,6 +17,10 @@ import {
   Cpu,
 } from "lucide-react";
 import { OpenCodeLogoIcon } from "@/components/OpenCodeLogoIcon";
+import {
+  GitHubCopilotCliIcon,
+  GitHubCopilotCloudIcon,
+} from "@/components/CopilotAdapterIcon";
 
 // ---------------------------------------------------------------------------
 // Type suffix parsing
@@ -132,10 +136,15 @@ const adapterDisplayMap: Record<string, AdapterDisplayInfo> = {
     description: "Managed remote Cursor agent",
     icon: MousePointer2,
   },
+  copilot_local: {
+    label: "GitHub Copilot CLI",
+    description: "Local GitHub Copilot CLI harness",
+    icon: GitHubCopilotCliIcon,
+  },
   github_copilot_web: {
-    label: "GitHub Copilot Web Agent",
+    label: "GitHub Copilot Cloud",
     description: "GitHub-hosted Copilot coding agent",
-    icon: Bot,
+    icon: GitHubCopilotCloudIcon,
   },
   openclaw_gateway: {
     label: "OpenClaw Gateway",

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  GitHubCopilotCliIcon,
+  GitHubCopilotCloudIcon,
+} from "@/components/CopilotAdapterIcon";
 import { getAdapterDisplay, getAdapterLabel, getAdapterLabels } from "./adapter-display-registry";
 
 describe("adapter display registry", () => {
@@ -28,6 +32,19 @@ describe("adapter display registry", () => {
       hermes_gateway: "Hermes Gateway",
       opencode_local: "OpenCode",
       pi_local: "Pi",
+      copilot_local: "GitHub Copilot CLI",
+      github_copilot_web: "GitHub Copilot Cloud",
+    });
+  });
+
+  it("maps both GitHub Copilot runtimes to distinct mode icons", () => {
+    expect(getAdapterDisplay("copilot_local")).toMatchObject({
+      label: "GitHub Copilot CLI",
+      icon: GitHubCopilotCliIcon,
+    });
+    expect(getAdapterDisplay("github_copilot_web")).toMatchObject({
+      label: "GitHub Copilot Cloud",
+      icon: GitHubCopilotCloudIcon,
     });
   });
 

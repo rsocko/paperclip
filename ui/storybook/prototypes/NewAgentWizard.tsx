@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { ArrowLeft, ArrowRight, Check, ChevronRight, Plus, RotateCcw, Settings2, Users } from "lucide-react";
 import { getAdapterDisplay } from "@/adapters/adapter-display-registry";
-import { AdapterMark as AgentAdapterMark } from "@/components/new-agent/AgentBasicsDialog";
+import { AdapterMark as AgentAdapterMark } from "@/components/AdapterMark";
 import { setupEfforts, SETUP_CREDENTIAL_KEYS, SETUP_LOGIN_HINTS } from "@/lib/agent-setup-fields";
 import { isNewAgentAdapterAllowed } from "@/lib/new-agent-adapters";
 import { Button } from "@/components/ui/button";
