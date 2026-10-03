@@ -129,6 +129,11 @@
   --paperclip-doc-annotation-highlight-x-outset: 0.25rem;
   --paperclip-doc-annotation-highlight-y-outset: 0.125rem;
   --paperclip-doc-annotation-highlight-radius: 0.1875rem;
+  --adapter-copilot-anchor: oklch(0.19 0 0);
+  --adapter-copilot-local-accent: oklch(0.54 0.22 293);
+  --adapter-copilot-cloud-accent: oklch(0.53 0.17 239);
+  --adapter-copilot-console: oklch(0.2 0.02 265);
+  --adapter-copilot-prompt: oklch(0.985 0 0);
 
   /* Brand agent-capsule gradient stops (paperclip.ing/brand/).
      "The capsule is the agent" — each agent gets a 2-stop gradient,
@@ -414,6 +419,10 @@
   --chip-match-identifier-bg: var(--muted);
   --chip-match-identifier-fg: var(--muted-foreground);
   --chip-match-identifier-border: var(--border);
+  --adapter-copilot-anchor: oklch(0.96 0 0);
+  --adapter-copilot-local-accent: oklch(0.76 0.16 293);
+  --adapter-copilot-cloud-accent: oklch(0.77 0.13 235);
+  --adapter-copilot-console: oklch(0.13 0.02 265);
   /* Dark-mode status-icon hues. The lighter progress blue gives bare glyphs
      contrast comparable to the neighboring gray, purple, and green icons.
      Blocked retains its base red; in_queue follows the progress icon blue. */

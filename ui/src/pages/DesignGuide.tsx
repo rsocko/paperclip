@@ -20,6 +20,10 @@ import { AiConnectionDesignExamples } from "@/components/ai-connections/AiConnec
 import { SavedProviderKeySelect } from "../components/onboarding/SavedProviderKeySelect";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { AgentCharacter } from "@/components/AgentCharacter";
+import {
+  GitHubCopilotCliIcon,
+  GitHubCopilotCloudIcon,
+} from "@/components/CopilotAdapterIcon";
 import { AGENT_PALETTE_IDS, appearanceForPalette } from "@paperclipai/shared";
 import { RepositoryEditor } from "@/components/RepositoryEditor";
 import { TaskChatRunnerActivityGroup } from "@/components/task-chat/TaskChatRunnerActivityGroup";
@@ -1507,6 +1511,21 @@ export function DesignGuide() {
             />
             <AppLogo name="Jira" logoUrl="/brands/apps/jira.svg" darkLogoUrl="/brands/apps/jira-dark.svg" size={44} />
             <AppLogo name="Fallback" logoUrl="/brands/apps/does-not-exist.svg" size={36} />
+          </div>
+        </SubSection>
+      </Section>
+
+      <Section title="Adapter mode icons">
+        <SubSection title="GitHub Copilot">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-2">
+              <GitHubCopilotCliIcon className="size-6" />
+              <span className="text-sm">GitHub Copilot CLI</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <GitHubCopilotCloudIcon className="size-6" />
+              <span className="text-sm">GitHub Copilot Cloud</span>
+            </div>
           </div>
         </SubSection>
       </Section>
