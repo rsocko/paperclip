@@ -264,6 +264,7 @@ async function renderForm(
     content?: "configuration" | "secrets";
     environmentVariablesPlacement?: "configuration" | "secrets";
     hideInlineSave?: boolean;
+    compactTestFeedback?: boolean;
     onDirtyChange?: (dirty: boolean) => void;
     onSaveActionChange?: (save: (() => void) | null) => void;
     onCancelActionChange?: (cancel: (() => void) | null) => void;
@@ -300,6 +301,7 @@ async function renderForm(
               onCancelActionChange={options.onCancelActionChange}
               showAdapterTypeField={false}
               showAdapterTestEnvironmentButton={options.showAdapterTestEnvironmentButton ?? false}
+              compactTestFeedback={options.compactTestFeedback}
             />
           </TooltipProvider>
         </ToastProvider>
@@ -1201,6 +1203,44 @@ describe("AgentConfigForm environment selector", () => {
 
     expect(mockAgentsApi.testEnvironment).toHaveBeenCalledTimes(1);
     expect(result.container.textContent).toContain("Network unavailable");
+  });
+
+  it("shows sanitized validation issue paths in compact test feedback", async () => {
+    mockAgentsApi.testEnvironment.mockRejectedValueOnce(new ApiError(
+      "Validation error",
+      400,
+      {
+        error: "Validation error",
+        details: [{
+          path: ["adapterConfig", "baseRef"],
+          message: "Expected string",
+          input: "secret-value-that-must-not-render",
+        }],
+      },
+    ));
+
+    const result = await renderForm([
+      makeEnvironment({ id: "local-1", name: "Local", driver: "local" }),
+    ], {
+      adapterConfig: { model: "gpt-5.4" },
+    }, {
+      showAdapterTestEnvironmentButton: true,
+      compactTestFeedback: true,
+    });
+    roots.push(result.root);
+
+    const testButton = Array.from(result.container.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Run test",
+    );
+    expect(testButton).toBeTruthy();
+
+    await act(async () => {
+      testButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await flushReact();
+
+    expect(result.container.textContent).toContain("adapterConfig.baseRef: Expected string");
+    expect(result.container.textContent).not.toContain("secret-value-that-must-not-render");
   });
 
   it("hides the Login button before Test and shows it after the adapter_auth_missing check for a Codex sandbox", async () => {

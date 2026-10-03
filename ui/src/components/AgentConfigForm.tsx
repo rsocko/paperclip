@@ -1,6 +1,6 @@
 import { AiConnectionField } from "./ai-connections/AiConnectionField";
 import { aiConnectionBindingSchema } from "@paperclipai/shared";
-import { testAgentSetup } from "@/lib/test-agent-setup";
+import { formatAgentSetupTestError, testAgentSetup } from "@/lib/test-agent-setup";
 import { setupEfforts } from "../lib/agent-setup-fields";
 import { RuntimeTestCard } from "./RuntimeTestCard";
 import { useState, useEffect, useRef, useMemo, useCallback, Children, isValidElement, type ReactNode } from "react";
@@ -1166,7 +1166,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     try {
       return await testEnvironment.mutateAsync();
     } catch (error) {
-      setTestActionError(error instanceof Error ? error.message : "Environment test failed");
+      setTestActionError(formatAgentSetupTestError(error));
       throw error;
     } finally {
       setTestActionPending(false);

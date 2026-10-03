@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { testAgentSetup } from "./test-agent-setup";
+import { ApiError } from "../api/client";
+import { formatAgentSetupTestError, testAgentSetup } from "./test-agent-setup";
 const testEnvironment = vi.hoisted(() => vi.fn());
 vi.mock("../api/agents", () => ({ agentsApi: { testEnvironment } }));
 const input = {
@@ -27,6 +28,37 @@ const ready = {
   checks: [{ code: "runtime", level: "info", message: "Ready" }],
 };
 beforeEach(() => testEnvironment.mockReset());
+it("formats sanitized validation issues without exposing other response fields", () => {
+  const error = new ApiError("Validation error", 400, {
+    error: "Validation error",
+    details: [
+      {
+        code: "too_big",
+        path: ["testCredentials", "GITHUB_TOKEN"],
+        message: "Must contain at most 16384 characters",
+        input: "secret-value-that-must-not-render",
+      },
+      {
+        code: "invalid_type",
+        path: ["adapterConfig", "baseRef"],
+        message: "Expected string",
+      },
+    ],
+    requestBody: { testCredentials: { GITHUB_TOKEN: "secret-value-that-must-not-render" } },
+  });
+
+  const formatted = formatAgentSetupTestError(error);
+
+  expect(formatted).toBe(
+    "testCredentials.GITHUB_TOKEN: Must contain at most 16384 characters\nadapterConfig.baseRef: Expected string",
+  );
+  expect(formatted).not.toContain("secret-value-that-must-not-render");
+  expect(formatted).not.toContain("requestBody");
+});
+it("falls back to the API error message when structured details are unavailable", () => {
+  expect(formatAgentSetupTestError(new ApiError("Connection unavailable", 503, null)))
+    .toBe("Connection unavailable");
+});
 it("does not report a connection when runtime readiness passes but provider authentication fails", async () => {
   testEnvironment
     .mockResolvedValueOnce(ready)
