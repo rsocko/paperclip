@@ -41,7 +41,6 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import {
   Popover,
   PopoverContent,
@@ -156,7 +155,6 @@ interface IssueDraft {
   assigneeModelLane?: IssueModelLane;
   assigneeModelOverride: string;
   assigneeThinkingEffort: string;
-  assigneeChrome: boolean;
   executionWorkspaceMode?: string;
   selectedExecutionWorkspaceId?: string;
   useIsolatedExecutionWorkspace?: boolean;
@@ -190,6 +188,15 @@ const ISSUE_THINKING_EFFORT_OPTIONS = {
   opencode_local: [
     { value: "", label: "Default" },
     { value: "minimal", label: "Minimal" },
+    { value: "low", label: "Low" },
+    { value: "medium", label: "Medium" },
+    { value: "high", label: "High" },
+    { value: "xhigh", label: "X-High" },
+    { value: "max", label: "Max" },
+  ],
+  copilot_local: [
+    { value: "", label: "Default" },
+    { value: "none", label: "None" },
     { value: "low", label: "Low" },
     { value: "medium", label: "Medium" },
     { value: "high", label: "High" },
@@ -495,7 +502,6 @@ export function NewIssueDialog() {
   const [assigneeModelLane, setAssigneeModelLane] = useState<IssueModelLane>("primary");
   const [assigneeModelOverride, setAssigneeModelOverride] = useState("");
   const [assigneeThinkingEffort, setAssigneeThinkingEffort] = useState("");
-  const [assigneeChrome, setAssigneeChrome] = useState(false);
   const [executionWorkspaceMode, setExecutionWorkspaceMode] = useState<string>("shared_workspace");
   const [selectedExecutionWorkspaceId, setSelectedExecutionWorkspaceId] = useState("");
   const [workMode, setWorkMode] = useState<IssueWorkMode>("standard");
@@ -721,7 +727,6 @@ export function NewIssueDialog() {
       assigneeModelLane,
       assigneeModelOverride,
       assigneeThinkingEffort,
-      assigneeChrome,
       executionWorkspaceMode,
       selectedExecutionWorkspaceId,
       workMode,
@@ -740,7 +745,6 @@ export function NewIssueDialog() {
     projectWorkspaceId,
     assigneeModelOverride,
     assigneeThinkingEffort,
-    assigneeChrome,
     executionWorkspaceMode,
     selectedExecutionWorkspaceId,
     workMode,
@@ -779,7 +783,6 @@ export function NewIssueDialog() {
     assigneeModelLane,
     assigneeModelOverride,
     assigneeThinkingEffort,
-    assigneeChrome,
     executionWorkspaceMode,
     selectedExecutionWorkspaceId,
     workMode,
@@ -817,7 +820,6 @@ export function NewIssueDialog() {
       setAssigneeModelLane("primary");
       setAssigneeModelOverride("");
       setAssigneeThinkingEffort("");
-      setAssigneeChrome(false);
       setExecutionWorkspaceMode(defaultExecutionWorkspaceMode);
       setWorkMode(nextWorkMode);
       setSelectedExecutionWorkspaceId(newIssueDefaults.executionWorkspaceId ?? "");
@@ -844,7 +846,6 @@ export function NewIssueDialog() {
       setShowWatchdogRow(false);
       setAssigneeModelOverride("");
       setAssigneeThinkingEffort("");
-      setAssigneeChrome(false);
       setExecutionWorkspaceMode(defaultExecutionWorkspaceModeForIssueDefaults(newIssueDefaults, defaultProject));
       setWorkMode(nextWorkMode);
       setSelectedExecutionWorkspaceId(newIssueDefaults.executionWorkspaceId ?? "");
@@ -882,7 +883,6 @@ export function NewIssueDialog() {
       setAssigneeModelLane(draft.assigneeModelLane ?? "primary");
       setAssigneeModelOverride(draft.assigneeModelOverride ?? "");
       setAssigneeThinkingEffort(draft.assigneeThinkingEffort ?? "");
-      setAssigneeChrome(draft.assigneeChrome ?? false);
       setExecutionWorkspaceMode(
         hasExplicitExecutionWorkspaceId || hasExplicitExecutionWorkspaceMode
           ? defaultExecutionWorkspaceModeForIssueDefaults(newIssueDefaults, restoredProject)
@@ -920,7 +920,6 @@ export function NewIssueDialog() {
       setShowWatchdogRow(false);
       setAssigneeModelOverride("");
       setAssigneeThinkingEffort("");
-      setAssigneeChrome(false);
       setExecutionWorkspaceMode(defaultExecutionWorkspaceModeForIssueDefaults(newIssueDefaults, defaultProject));
       setSelectedExecutionWorkspaceId(newIssueDefaults.executionWorkspaceId ?? "");
       executionWorkspaceDefaultProjectId.current = hasExplicitProjectWorkspaceId || newIssueDefaults.executionWorkspaceId || defaultProject
@@ -935,12 +934,13 @@ export function NewIssueDialog() {
       setAssigneeModelLane("primary");
       setAssigneeModelOverride("");
       setAssigneeThinkingEffort("");
-      setAssigneeChrome(false);
       return;
     }
     const validThinkingValues =
       assigneeAdapterType === "codex_local"
         ? codexReasoningEffortOptions(effectiveAssigneeModel)
+        : assigneeAdapterType === "copilot_local"
+          ? ISSUE_THINKING_EFFORT_OPTIONS.copilot_local
         : assigneeAdapterType === "opencode_local"
           ? ISSUE_THINKING_EFFORT_OPTIONS.opencode_local
           : ISSUE_THINKING_EFFORT_OPTIONS.claude_local;
@@ -979,7 +979,6 @@ export function NewIssueDialog() {
     setAssigneeModelLane("primary");
     setAssigneeModelOverride("");
     setAssigneeThinkingEffort("");
-    setAssigneeChrome(false);
     setExecutionWorkspaceMode("shared_workspace");
     setSelectedExecutionWorkspaceId("");
     setWorkMode("standard");
@@ -1009,7 +1008,6 @@ export function NewIssueDialog() {
     setAssigneeModelLane("primary");
     setAssigneeModelOverride("");
     setAssigneeThinkingEffort("");
-    setAssigneeChrome(false);
     setExecutionWorkspaceMode("shared_workspace");
     setSelectedExecutionWorkspaceId("");
     setWorkMode("standard");
@@ -1030,7 +1028,6 @@ export function NewIssueDialog() {
       lane: assigneeModelLane,
       modelOverride: assigneeModelOverride,
       thinkingEffortOverride: assigneeThinkingEffort,
-      chrome: assigneeChrome,
     });
     const selectedProject = orderedProjects.find((project) => project.id === projectId);
     // Hidden selectors must not submit a restored draft over the managed default.
@@ -1200,12 +1197,16 @@ export function NewIssueDialog() {
       ? "Claude options"
       : assigneeAdapterType === "codex_local"
         ? "Codex options"
+        : assigneeAdapterType === "copilot_local"
+          ? "Copilot options"
         : assigneeAdapterType === "opencode_local"
           ? "OpenCode options"
         : "Agent options";
   const thinkingEffortOptions =
     assigneeAdapterType === "codex_local"
       ? codexReasoningEffortOptions(effectiveAssigneeModel)
+      : assigneeAdapterType === "copilot_local"
+        ? ISSUE_THINKING_EFFORT_OPTIONS.copilot_local
       : assigneeAdapterType === "opencode_local"
         ? ISSUE_THINKING_EFFORT_OPTIONS.opencode_local
       : ISSUE_THINKING_EFFORT_OPTIONS.claude_local;
@@ -1956,6 +1957,8 @@ export function NewIssueDialog() {
                       noneLabel="Default model"
                       searchPlaceholder="Search models..."
                       emptyMessage="No models found."
+                      creatable
+                      createLabel="Use manual model"
                       onChange={setAssigneeModelOverride}
                     />
                   </div>
@@ -1977,15 +1980,6 @@ export function NewIssueDialog() {
                         </button>
                       ))}
                     </div>
-                  </div>
-                )}
-                {assigneeAdapterType === "claude_local" && assigneeModelLane === "custom" && (
-                  <div className="flex items-center justify-between rounded-md border border-border px-2 py-1.5">
-                    <div className="text-xs text-muted-foreground">Enable Chrome (--chrome)</div>
-                    <ToggleSwitch
-                      checked={assigneeChrome}
-                      onCheckedChange={() => setAssigneeChrome((value) => !value)}
-                    />
                   </div>
                 )}
               </div>

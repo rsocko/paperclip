@@ -11,7 +11,6 @@ describe("buildAssigneeAdapterOverrides", () => {
         lane: "custom",
         modelOverride: "anything",
         thinkingEffortOverride: "high",
-        chrome: true,
       }),
     ).toBeNull();
   });
@@ -23,25 +22,22 @@ describe("buildAssigneeAdapterOverrides", () => {
         lane: "primary",
         modelOverride: "",
         thinkingEffortOverride: "",
-        chrome: false,
       }),
     ).toBeNull();
   });
 
-  it("custom lane preserves explicit model + thinking effort + chrome overrides", () => {
+  it("custom lane preserves explicit model and thinking effort overrides", () => {
     expect(
       buildAssigneeAdapterOverrides({
         adapterType: "claude_local",
         lane: "custom",
         modelOverride: "claude-haiku-4-5",
         thinkingEffortOverride: "high",
-        chrome: true,
       }),
     ).toEqual({
       adapterConfig: {
         model: "claude-haiku-4-5",
         effort: "high",
-        chrome: true,
       },
     });
   });
@@ -53,7 +49,6 @@ describe("buildAssigneeAdapterOverrides", () => {
         lane: "custom",
         modelOverride: "",
         thinkingEffortOverride: "",
-        chrome: false,
       }),
     ).toBeNull();
   });
@@ -65,7 +60,6 @@ describe("buildAssigneeAdapterOverrides", () => {
         lane: "custom",
         modelOverride: "",
         thinkingEffortOverride: "minimal",
-        chrome: false,
       }),
     ).toEqual({
       adapterConfig: { modelReasoningEffort: "minimal" },
@@ -76,10 +70,25 @@ describe("buildAssigneeAdapterOverrides", () => {
         lane: "custom",
         modelOverride: "",
         thinkingEffortOverride: "max",
-        chrome: false,
       }),
     ).toEqual({
       adapterConfig: { variant: "max" },
+    });
+  });
+
+  it("uses the Copilot adapter runtime key for thinking effort", () => {
+    expect(
+      buildAssigneeAdapterOverrides({
+        adapterType: "copilot_local",
+        lane: "custom",
+        modelOverride: "claude-sonnet-5",
+        thinkingEffortOverride: "xhigh",
+      }),
+    ).toEqual({
+      adapterConfig: {
+        model: "claude-sonnet-5",
+        reasoningEffort: "xhigh",
+      },
     });
   });
 
@@ -90,7 +99,6 @@ describe("buildAssigneeAdapterOverrides", () => {
         lane: "custom",
         modelOverride: "gpt-6-astra",
         thinkingEffortOverride: "ultra",
-        chrome: false,
       }),
     ).toEqual({
       adapterConfig: {
