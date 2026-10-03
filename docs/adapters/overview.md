@@ -18,6 +18,7 @@ When a heartbeat fires, Paperclip:
 
 | Adapter | Type Key | Description |
 |---------|----------|-------------|
+| [GitHub Copilot Cloud](/adapters/github-copilot-cloud) | `github_copilot_web` | Dispatches native Agent Tasks to GitHub-hosted Copilot coding agent |
 | [Claude Code](/adapters/claude-local) | `claude_local` | Runs Claude Code CLI locally, with a native ACP engine when available |
 | [Codex](/adapters/codex-local) | `codex_local` | Runs OpenAI Codex CLI locally, with a native ACP engine when available |
 | [Gemini CLI](/adapters/gemini-local) | `gemini_local` | Runs Gemini CLI locally (experimental — adapter package exists, not yet in stable type enum) |
@@ -115,7 +116,8 @@ my-adapter/
 
 ## Choosing an Adapter
 
-- **Need a coding agent?** Use `claude_local`, `codex_local`, `opencode_local`, `hermes_local`, or install `droid_local` as an external plugin
+- **Need a GitHub-hosted coding agent with a session visible on github.com?** Use [`github_copilot_web`](/adapters/github-copilot-cloud)
+- **Need a locally executed coding agent?** Use `claude_local`, `codex_local`, `opencode_local`, `hermes_local`, or install `droid_local` as an external plugin
 - **Need the richest live run feedback?** Use `claude_local`, `codex_local`, or `gemini_local` with `adapterConfig.engine` set to `acp` when the execution environment satisfies the ACP prerequisites — see [Feedback granularity](#feedback-granularity)
 - **Need Hermes on another host or already running as a service?** Use `hermes_gateway`
 - **Need to run a script or command?** Use `process`

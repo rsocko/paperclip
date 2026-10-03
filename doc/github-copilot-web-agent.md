@@ -11,10 +11,14 @@ Copilot CLI, ACP, Mission Control, or another Paperclip adapter.
   verifies that `copilot-swe-agent` is present in the repository's GraphQL
   `suggestedActors`.
 - A user-to-server GitHub credential with repository `Agent tasks: read and
-  write`. Fine-grained PATs and GitHub App user access tokens are supported.
+  write`. For a fine-grained PAT, select the exact target under **Repository
+  access**, then set **Repository permissions → Agent tasks** to **Read and
+  write**. Fine-grained PATs and GitHub App user access tokens are supported.
   GitHub App installation access tokens are not supported by Agent Tasks.
 - Read access to repository metadata, refs, pull requests, and commits so
   Paperclip can verify repository identity and resolve provider artifacts.
+- Any organization-required PAT approval or SAML SSO authorization must be
+  complete before testing the connection.
 
 In **New agent → GitHub Copilot Cloud**, enter the repository as exact
 `owner/repo` text and enter an existing base branch. Enter a
@@ -57,6 +61,9 @@ extension. Omitting `model` lets GitHub select a model.
 Copilot entitlement, and repository eligibility. The cancellation check is
 informational. A valid setup returns `pass` even though Stop must wait for GitHub
 to reach a terminal task state.
+
+The operator-facing setup guide is published at
+`https://docs.paperclip.ing/adapters/github-copilot-cloud/`.
 
 ## Lifecycle and recovery
 
