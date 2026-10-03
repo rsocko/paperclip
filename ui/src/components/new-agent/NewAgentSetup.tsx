@@ -9,7 +9,7 @@ import {
   setupEfforts,
   setupProviderKeys,
 } from "@/lib/agent-setup-fields";
-import { testAgentSetup } from "@/lib/test-agent-setup";
+import { formatAgentSetupTestError, testAgentSetup } from "@/lib/test-agent-setup";
 import { useCloudInstance } from "@/hooks/useCloudInstance";
 import { isNewAgentAdapterAllowed } from "@/lib/new-agent-adapters";
 import { useEffect, useRef, useState } from "react";
@@ -485,9 +485,7 @@ function Setup({
       );
     } catch (cause) {
       if (run === generation.current) {
-        setError(
-          cause instanceof Error ? cause.message : "Could not test the agent.",
-        );
+        setError(formatAgentSetupTestError(cause));
         setTestState("fail");
       }
       return false;

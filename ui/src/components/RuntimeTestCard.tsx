@@ -52,6 +52,9 @@ export function RuntimeTestCard({
   disabled?: boolean;
 }) {
   const content = copy[state];
+  const errorMessages = state === "fail" && error
+    ? error.split("\n").filter(Boolean)
+    : [];
   const Icon =
     state === "running"
       ? Loader2
@@ -91,9 +94,19 @@ export function RuntimeTestCard({
             className="min-w-0 space-y-1"
           >
             <h3 className="text-sm font-medium">{content.title}</h3>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {state === "fail" && error ? error : content.description}
-            </p>
+            {errorMessages.length > 0 ? (
+              <ul className="space-y-1 text-xs leading-relaxed text-muted-foreground">
+                {errorMessages.map((message) => (
+                  <li key={message} className="break-words">
+                    {message}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {content.description}
+              </p>
+            )}
           </div>
           <Button
             type="button"
