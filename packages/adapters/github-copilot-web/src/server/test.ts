@@ -52,7 +52,7 @@ export async function testEnvironment(
     checks.push({
       code: "github_copilot_web_base_ref_missing",
       level: "error",
-      message: "Base ref is required.",
+      message: "Base branch is required.",
     });
   }
   if (token && match && baseRef) {

@@ -17,7 +17,7 @@ Adapter: github_copilot_web
 
 Use when:
 - Paperclip must dispatch coding work to GitHub-hosted Copilot cloud agent through the official Agent Tasks REST API
-- The target is one exact GitHub repository and base ref
+- The target is one exact GitHub repository and base branch
 - Provider-side branch and pull-request artifacts must be reconciled into the Paperclip run
 
 Don't use when:
@@ -28,7 +28,7 @@ Don't use when:
 
 Core fields:
 - repository (string, required): exact owner/repo target
-- baseRef (string, required): exact branch or ref used as the task base
+- baseRef (string, required): exact branch used as the task base
 - headRef (string, optional): existing branch/PR head to continue
 - model (string, optional): exact GitHub-supported model; omit for auto-selection
 - customAgent (string, optional): .github/agents filename without .agent.md

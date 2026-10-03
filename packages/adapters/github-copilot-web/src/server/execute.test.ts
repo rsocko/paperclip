@@ -116,6 +116,14 @@ afterEach(() => {
 });
 
 describe("github_copilot_web execute", () => {
+  it("describes a missing baseRef as a missing base branch", async () => {
+    const ctx = context();
+    delete ctx.config.baseRef;
+
+    expect((await execute(ctx)).errorMessage)
+      .toBe("Base branch is required and must name an existing branch.");
+  });
+
   it("rejects missing and persisted plaintext credentials before dispatch", async () => {
     const missing = context();
     missing.config.env = {};
@@ -180,6 +188,8 @@ describe("github_copilot_web execute", () => {
       },
     });
     const ctx = context();
+    const onMeta = vi.fn(async () => undefined);
+    ctx.onMeta = onMeta;
     ctx.config.model = "gpt-5.4";
     const result = await execute(ctx);
 
@@ -201,6 +211,10 @@ describe("github_copilot_web execute", () => {
       create_pull_request: true,
     });
     expect(JSON.parse(create!.body!).prompt).toContain("[paperclip-dispatch:paperclip:issue-1:run-1]");
+    expect(JSON.parse(create!.body!).prompt).toContain("configured repository and base branch");
+    expect(onMeta).toHaveBeenCalledWith(expect.objectContaining({
+      commandNotes: expect.arrayContaining(["Base branch: main"]),
+    }));
     expect(ctx.dispatches.count).toBe(1);
   });
 

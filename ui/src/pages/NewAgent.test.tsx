@@ -331,7 +331,7 @@ describe("New agent setup", () => {
     expect(secrets.create).toHaveBeenCalledWith("company-1", expect.objectContaining({ value: "new-cursor-key" }));
     expect(api.hire.mock.calls[0][1].adapterConfig.env.CURSOR_API_KEY).toMatchObject({ type: "secret_ref", secretId: "org-secret-1" });
   });
-  it("configures GitHub Copilot Cloud with exact repository and base ref plus a required user secret", async () => {
+  it("configures GitHub Copilot Cloud with exact repository and base branch plus a required user secret", async () => {
     secrets.listMyUserSecrets.mockResolvedValue([{
       definition: {
         id: "github-token",
@@ -354,7 +354,7 @@ describe("New agent setup", () => {
 
     await render("github_copilot_web");
     expect(container.querySelector('[aria-label="GitHub repository"]')).not.toBeNull();
-    expect(container.querySelector('[aria-label="Base ref"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Base branch"]')).not.toBeNull();
     expect(container.textContent).toContain("Using your saved secret: GitHub Agent Tasks");
     expect(container.textContent).toContain("Leave the token field blank to keep using it");
     expect((container.querySelector('[aria-label="GITHUB_TOKEN"]') as HTMLInputElement).placeholder)
@@ -362,7 +362,7 @@ describe("New agent setup", () => {
     expect(container.textContent).not.toContain("organization secret");
 
     await fill("GitHub repository", "octo/repo");
-    await fill("Base ref", "main");
+    await fill("Base branch", "main");
     await click("Run test");
 
     const binding = {
@@ -410,7 +410,7 @@ describe("New agent setup", () => {
     expect((container.querySelector('[aria-label="GITHUB_TOKEN"]') as HTMLInputElement).placeholder)
       .toBe("Paste a user-to-server token");
     await fill("GitHub repository", "octo/repo");
-    await fill("Base ref", "main");
+    await fill("Base branch", "main");
     await fill("GITHUB_TOKEN", "entered-user-token");
     await click("Run test");
 

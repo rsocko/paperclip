@@ -23,7 +23,7 @@ export function getConfigSchema(): AdapterConfigSchema {
       },
       {
         key: "baseRef",
-        label: "Base ref",
+        label: "Base branch",
         type: "text",
         required: true,
         hint: "Existing branch used as the base for the cloud task.",

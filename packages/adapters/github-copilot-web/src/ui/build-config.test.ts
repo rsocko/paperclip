@@ -38,10 +38,15 @@ function values(overrides: Partial<CreateConfigValues>): CreateConfigValues {
 }
 
 describe("buildGitHubCopilotWebConfig", () => {
-  it("declares the required repository and base-ref fields for create and edit forms", () => {
+  it("declares the required repository and base branch fields for create and edit forms", () => {
     const fields = new Map(getConfigSchema().fields.map((field) => [field.key, field]));
     expect(fields.get("repository")).toMatchObject({ type: "text", required: true });
-    expect(fields.get("baseRef")).toMatchObject({ type: "text", required: true });
+    expect(fields.get("baseRef")).toMatchObject({
+      type: "text",
+      required: true,
+      label: "Base branch",
+      hint: "Existing branch used as the base for the cloud task.",
+    });
   });
 
   it("preserves schema inputs and user-secret credential references", () => {

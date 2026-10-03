@@ -13,6 +13,23 @@ afterEach(() => {
 });
 
 describe("github_copilot_web testEnvironment", () => {
+  it("describes a missing baseRef as a missing base branch", async () => {
+    const result = await testEnvironment({
+      companyId: "company-1",
+      adapterType: "github_copilot_web",
+      config: {
+        repository: "octo/repo",
+        env: { GITHUB_TOKEN: { type: "plain", value: "resolved-user-token" } },
+      },
+    });
+
+    expect(result.checks).toContainEqual({
+      code: "github_copilot_web_base_ref_missing",
+      level: "error",
+      message: "Base branch is required.",
+    });
+  });
+
   it("passes valid resolved setup while reporting cancellation as information", async () => {
     vi.stubGlobal("fetch", vi.fn(async (request: string | URL | Request) => {
       const url = String(request);
