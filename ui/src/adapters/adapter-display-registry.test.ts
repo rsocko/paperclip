@@ -9,6 +9,7 @@ import { getAdapterDisplay, getAdapterLabel, getAdapterLabels } from "./adapter-
 describe("adapter display registry", () => {
   it("uses user-facing labels without the legacy local qualifier for built-in adapters", () => {
     expect(getAdapterLabel("codex_local")).toBe("Codex");
+    expect(getAdapterLabel("copilot_local")).toBe("GitHub Copilot CLI");
     expect(getAdapterLabel("claude_local")).toBe("Claude Code");
     expect(getAdapterLabel("acpx_local")).toBe("ACPX (retired)");
     expect(getAdapterLabel("cursor")).toBe("Cursor");

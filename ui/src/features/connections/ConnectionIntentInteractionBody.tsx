@@ -361,6 +361,7 @@ export function ConnectionIntentInteractionBody({
         initialMethod={repair.connection.method}
         fixedMethod={false}
         connectionId={repair.connection.id}
+        gatewayBaseUrl={repair.connection.endpointBaseUrl}
         name={repair.connection.name}
         nameForMethod={(method) => defaultAiConnectionName(addresseeName ?? addresseeLabel, repair.connection.provider, method)}
         hideName

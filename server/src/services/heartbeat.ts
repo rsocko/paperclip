@@ -637,6 +637,7 @@ import {
   type EffectiveRunConfigFingerprints,
   type EffectiveRunConfigSecretManifestEntry,
 } from "./effective-run-config-fingerprints.js";
+import { taskAdapterConfigOverrides } from "./issue-assignee-adapter-overrides.js";
 import type { PluginWorkerManager } from "./plugin-worker-manager.js";
 import { serverVersion } from "../version.js";
 
@@ -5577,11 +5578,13 @@ export function resolveRuntimeSessionParamsForWorkspace(input: {
 
 function parseIssueAssigneeAdapterOverrides(
   raw: unknown,
+  adapterType: string,
 ): ParsedIssueAssigneeAdapterOverrides | null {
   const parsed = parseObject(raw);
-  const parsedAdapterConfig = parseObject(parsed.adapterConfig);
-  const adapterConfig =
-    Object.keys(parsedAdapterConfig).length > 0 ? parsedAdapterConfig : null;
+  const adapterConfig = taskAdapterConfigOverrides(
+    adapterType,
+    parsed.adapterConfig,
+  );
   const useProjectWorkspace =
     typeof parsed.useProjectWorkspace === "boolean"
       ? parsed.useProjectWorkspace
@@ -20573,6 +20576,7 @@ export function heartbeatService(
         issueContext && issueContext.assigneeAgentId === agent.id
           ? parseIssueAssigneeAdapterOverrides(
               issueContext.assigneeAdapterOverrides,
+              agent.adapterType,
             )
           : null;
       const experimentalInstanceSettings =

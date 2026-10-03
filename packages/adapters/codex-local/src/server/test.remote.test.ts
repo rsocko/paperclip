@@ -16,6 +16,7 @@ const {
   restoreWorkspace,
   capturedHomeAssetFiles,
   capturedHomeAssetAuthJson,
+  capturedHomeAssetConfigToml,
 } = vi.hoisted(() => {
   const restoreWorkspace = vi.fn(async () => {});
   // Records the files staged in the uploaded "home" asset at call time, before
@@ -25,9 +26,11 @@ const {
   // Records the staged auth.json content, so tests can assert WHICH home's
   // credential the probe uploaded (the effective home a run would use).
   const capturedHomeAssetAuthJson: { value: string | null } = { value: null };
+  const capturedHomeAssetConfigToml: { value: string | null } = { value: null };
   return {
     capturedHomeAssetFiles,
     capturedHomeAssetAuthJson,
+    capturedHomeAssetConfigToml,
     ensureAdapterExecutionTargetDirectory: vi.fn(async () => {}),
     ensureAdapterExecutionTargetCommandResolvable: vi.fn(async () => {}),
     maybeRunSandboxInstallCommand: vi.fn(async () => null),
@@ -59,6 +62,9 @@ const {
         capturedHomeAssetAuthJson.value = await fs
           .readFile(`${homeAsset.localDir}/auth.json`, "utf8")
           .catch(() => null);
+        capturedHomeAssetConfigToml.value = await fs
+          .readFile(`${homeAsset.localDir}/config.toml`, "utf8")
+          .catch(() => null);
       }
       return {
         target: null,
@@ -73,7 +79,7 @@ const {
     prepareManagedCodexHome: vi.fn(async () => {
       // Return a real managed home seeded with credentials so the probe's
       // minimal-home copy step (auth.json/config.toml) has something to read.
-      const dir = await fs.mkdtemp(`${os.tmpdir()}/paperclip-managed-codex-home-`);
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-managed-codex-home-"));
       await fs.writeFile(`${dir}/auth.json`, JSON.stringify({ OPENAI_API_KEY: "sk-managed" }));
       await fs.writeFile(`${dir}/config.toml`, "model = \"gpt-5\"\n");
       return dir;
@@ -133,6 +139,7 @@ describe("codex remote environment diagnostics", () => {
     delete process.env.OPENAI_API_KEY;
     capturedHomeAssetFiles.value = null;
     capturedHomeAssetAuthJson.value = null;
+    capturedHomeAssetConfigToml.value = null;
     while (scratchDirs.length > 0) {
       const dir = scratchDirs.pop();
       if (dir) await fs.rm(dir, { recursive: true, force: true }).catch(() => undefined);
@@ -183,9 +190,9 @@ describe("codex remote environment diagnostics", () => {
     // The probe must upload only a minimal credentials-only home, never the
     // full managed CODEX_HOME (which can be hundreds of MB of session history).
     const homeAsset = runtimeInput?.assets?.find((asset) => asset.key === "home");
-    expect(homeAsset?.localDir).toContain(`${os.tmpdir()}/paperclip-codex-probe-home-`);
+    expect(homeAsset?.localDir).toContain(path.join(os.tmpdir(), "paperclip-codex-probe-home-"));
     expect(capturedHomeAssetFiles.value).toEqual(["auth.json", "config.toml"]);
-    expect(runtimeInput?.workspaceLocalDir).toContain(`${os.tmpdir()}/paperclip-codex-envtest-`);
+    expect(runtimeInput?.workspaceLocalDir).toContain(path.join(os.tmpdir(), "paperclip-codex-envtest-"));
     expect(runtimeInput?.workspaceLocalDir).not.toBe("/remote/workspace");
     expect(await fs.stat(runtimeInput!.workspaceLocalDir).catch(() => null)).toBeNull();
     expect(runtimeInput?.target?.remoteCwd).toBe("/remote/workspace");
@@ -251,6 +258,68 @@ describe("codex remote environment diagnostics", () => {
     expect(probeCall?.[4].env.CODEX_HOME).toContain("/remote/workspace/.paperclip-runtime/codex/probe-home-codex-envtest-");
     expect(probeCall?.[4].env.CODEX_HOME?.startsWith("/tmp/")).toBe(false);
     expect(probeCall?.[3]).toContain("--skip-git-repo-check");
+    expect(prepareAdapterExecutionTargetRuntime).not.toHaveBeenCalled();
+    expect(capturedHomeAssetConfigToml.value).toBeNull();
+    expect(probeCall?.[3].join(" ")).not.toContain("sk-test");
+  });
+
+  it("stages a managed gateway config beside isolated API-key probe credentials", async () => {
+    const managedHome = await makeScratchDir("paperclip-managed-ai-codex-");
+    const configToml = [
+      'cli_auth_credentials_store = "file"',
+      'model_provider = "paperclip_gateway"',
+      "",
+      "[model_providers.paperclip_gateway]",
+      'base_url = "http://gateway.test/v1"',
+      'env_key = "OPENAI_API_KEY"',
+      'wire_api = "responses"',
+      "",
+    ].join("\n");
+    await fs.writeFile(path.join(managedHome, "config.toml"), configToml, { mode: 0o600 });
+
+    const result = await testEnvironment({
+      companyId: "company-1",
+      adapterType: "codex_local",
+      config: {
+        engine: "cli",
+        command: "codex",
+        env: {
+          CODEX_HOME: managedHome,
+          OPENAI_API_KEY: "gateway-probe-key",
+        },
+        managedAiConnection: {
+          provider: "openai",
+          method: "api_key",
+          identity: "managed-gateway-fixture",
+        },
+      },
+      executionTarget: sandboxTarget(),
+      environmentName: "QA Daytona",
+    });
+
+    expect(result.status).toBe("pass");
+    expect(capturedHomeAssetFiles.value).toEqual(["config.toml"]);
+    expect(capturedHomeAssetConfigToml.value).toBe(configToml);
+    expect(capturedHomeAssetAuthJson.value).toBeNull();
+
+    const runtimeCall = prepareAdapterExecutionTargetRuntime.mock.calls.at(-1) as unknown as
+      | [{ assets?: Array<{ key: string; localDir: string }> }]
+      | undefined;
+    const stagedHome = runtimeCall?.[0].assets?.find((asset) => asset.key === "home")?.localDir;
+    expect(stagedHome).toContain(path.join(os.tmpdir(), "paperclip-codex-probe-home-"));
+    expect(await fs.stat(stagedHome!).catch(() => null)).toBeNull();
+
+    const probeCall = runAdapterExecutionTargetProcess.mock.calls.at(-1) as unknown as
+      | [string, AdapterExecutionTarget, string, string[], { cwd: string; env: Record<string, string> }]
+      | undefined;
+    expect(probeCall?.[2]).toBe("sh");
+    expect(probeCall?.[3].join(" ")).not.toContain("gateway-probe-key");
+    expect(probeCall?.[3][1]).toContain('> "$CODEX_HOME/auth.json"');
+    expect(probeCall?.[4].env).toMatchObject({
+      CODEX_HOME: "/remote/workspace/.paperclip-runtime/runs/test/workspace/.paperclip-runtime/codex/home",
+      _PAPERCLIP_CODEX_AUTH_JSON: JSON.stringify({ OPENAI_API_KEY: "gateway-probe-key" }),
+    });
+    expect(restoreWorkspace).toHaveBeenCalledTimes(1);
   });
 
   it("emits the canonical adapter_auth_missing check when a sandbox hello probe reports missing auth", async () => {
@@ -259,7 +328,7 @@ describe("codex remote environment diagnostics", () => {
     // check code. The user interface reads this code to decide login
     // eligibility; it does not parse the message text or the top-level status.
     prepareManagedCodexHome.mockImplementationOnce(async () => {
-      const dir = await fs.mkdtemp(`${os.tmpdir()}/paperclip-managed-codex-home-noauth-`);
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-managed-codex-home-noauth-"));
       await fs.writeFile(`${dir}/config.toml`, "model = \"gpt-5\"\n");
       return dir;
     });
@@ -312,7 +381,7 @@ describe("codex remote environment diagnostics", () => {
     // host has no Codex auth.json. The probe must not upload an empty home or
     // set CODEX_HOME, so Codex falls back to the sandbox's baked-in login.
     prepareManagedCodexHome.mockImplementationOnce(async () => {
-      const dir = await fs.mkdtemp(`${os.tmpdir()}/paperclip-managed-codex-home-noauth-`);
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-managed-codex-home-noauth-"));
       // No auth.json — only a config file.
       await fs.writeFile(`${dir}/config.toml`, "model = \"gpt-5\"\n");
       return dir;

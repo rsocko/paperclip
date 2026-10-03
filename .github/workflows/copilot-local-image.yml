@@ -1,0 +1,174 @@
+name: Copilot local image
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: copilot-local-image-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/rsocko/paperclip
+  IMMUTABLE_TAG: copilot-local-sha-${{ github.sha }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 75
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ github.token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          target: copilot-local
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache-copilot-local-${{ matrix.arch }}
+          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache-copilot-local-${{ matrix.arch }},mode=max
+          build-args: |
+            PAPERCLIP_BUILD_COMMIT=${{ github.sha }}
+            PAPERCLIP_BUILD_VERSION=0.0.0-copilot-local.g${{ github.sha }}
+            CLI_TOOLS_CACHE_EPOCH=copilot-local-v1
+            COPILOT_CLI_VERSION=1.0.90
+            COPILOT_ADAPTER_SOURCE_COMMIT=69a2c6e399d342ce59cc7d3d27084d936b55a705
+            COPILOT_ADAPTER_SOURCE_SHA256=820096bc052e68a010253d0effb66d7ea190fd49cdf3cb04087c0fcf4c391bd2
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.IMMUTABLE_TAG }}
+
+      - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          test -n "$DIGEST"
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: copilot-local-digest-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Download digests
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          path: /tmp/digests
+          pattern: copilot-local-digest-*
+          merge-multiple: true
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ github.token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+
+      - name: Publish multi-platform image
+        working-directory: /tmp/digests
+        run: |
+          set -euo pipefail
+          tags=(-t "${IMAGE}:${IMMUTABLE_TAG}")
+          if [ "$GITHUB_REF" = "refs/heads/master" ]; then
+            tags+=(-t "${IMAGE}:copilot-local")
+          fi
+          docker buildx imagetools create \
+            "${tags[@]}" \
+            $(printf "${IMAGE}@sha256:%s " *)
+
+      - name: Resolve immutable digest
+        id: image
+        run: |
+          set -euo pipefail
+          digest="$(
+            docker buildx imagetools inspect "${IMAGE}:${IMMUTABLE_TAG}" \
+              --format '{{json .Manifest}}' | jq -er .digest
+          )"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Published ${IMAGE}:${IMMUTABLE_TAG} at $digest"
+
+      - name: Verify the published image
+        run: |
+          set -euo pipefail
+          docker run --rm --platform linux/amd64 --pull always \
+            "${IMAGE}@${{ steps.image.outputs.digest }}" \
+            assert-copilot-local-image
+
+      - name: Attest the published image
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
+
+      - name: Verify public anonymous access
+        run: |
+          set -euo pipefail
+          docker logout ghcr.io
+          for attempt in 1 2 3 4 5 6; do
+            if docker buildx imagetools inspect "${IMAGE}@${{ steps.image.outputs.digest }}" >/dev/null; then
+              echo "Anonymous registry access succeeded."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "The GHCR package is not publicly readable. Set package visibility to public." >&2
+          exit 1
