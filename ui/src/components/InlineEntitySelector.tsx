@@ -33,6 +33,10 @@ interface InlineEntitySelectorProps {
   triggerTestId?: string;
   /** Optional slot name used by consuming surfaces for scoped presentation rules. */
   triggerDataSlot?: string;
+  /** Allow the current search text to be selected as an exact custom value. */
+  creatable?: boolean;
+  /** Action label for a custom value. */
+  createLabel?: string;
 }
 
 const EMPTY_RECENT_OPTION_IDS: string[] = [];
@@ -57,6 +61,8 @@ export const InlineEntitySelector = forwardRef<HTMLButtonElement, InlineEntitySe
       disabled = false,
       triggerTestId,
       triggerDataSlot,
+      creatable = false,
+      createLabel = "Use custom value",
     },
     ref,
   ) {
@@ -76,13 +82,27 @@ export const InlineEntitySelector = forwardRef<HTMLButtonElement, InlineEntitySe
     const filteredOptions = useMemo(() => {
       const term = query.trim().toLowerCase();
       if (!term) return allOptions;
-      return allOptions.filter((option) => {
+      const matches = allOptions.filter((option) => {
         const haystack = `${option.label} ${option.searchText ?? ""}`.toLowerCase();
         return haystack.includes(term);
       });
-    }, [allOptions, query]);
+      const customValue = query.trim();
+      if (
+        creatable &&
+        customValue &&
+        !allOptions.some((option) => option.id.toLowerCase() === customValue.toLowerCase())
+      ) {
+        matches.unshift({
+          id: customValue,
+          label: `${createLabel}: ${customValue}`,
+          searchText: customValue,
+        });
+      }
+      return matches;
+    }, [allOptions, creatable, createLabel, query]);
 
-    const currentOption = options.find((option) => option.id === value) ?? null;
+    const currentOption = options.find((option) => option.id === value)
+      ?? (creatable && value ? { id: value, label: value, searchText: value } : null);
 
     const setHighlightedIndexValue = useCallback((next: number | ((current: number) => number)) => {
       const resolved = typeof next === "function" ? next(highlightedIndexRef.current) : next;

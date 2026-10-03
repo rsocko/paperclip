@@ -263,4 +263,65 @@ describe("InlineEntitySelector", () => {
       root.unmount();
     });
   });
+
+  it("creates and displays an exact manual value", async () => {
+    const root = createRoot(container);
+    const onChange = vi.fn();
+
+    act(() => {
+      root.render(
+        <InlineEntitySelector
+          value=""
+          options={[{ id: "auto", label: "Auto" }]}
+          placeholder="Default model"
+          noneLabel="Default model"
+          searchPlaceholder="Search models..."
+          emptyMessage="No models found."
+          onChange={onChange}
+          creatable
+          createLabel="Use manual model"
+        />,
+      );
+    });
+
+    const trigger = container.querySelector("button") as HTMLButtonElement;
+    await act(async () => {
+      trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    const input = document.querySelector('input[placeholder="Search models..."]') as HTMLInputElement;
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(input, "custom/model");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const manualOption = Array.from(document.querySelectorAll("button"))
+      .find((button) => button.textContent?.includes("Use manual model: custom/model"));
+    expect(manualOption).not.toBeUndefined();
+    await act(async () => {
+      manualOption!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(onChange).toHaveBeenCalledWith("custom/model");
+
+    act(() => {
+      root.render(
+        <InlineEntitySelector
+          value="custom/model"
+          options={[{ id: "auto", label: "Auto" }]}
+          placeholder="Default model"
+          noneLabel="Default model"
+          searchPlaceholder="Search models..."
+          emptyMessage="No models found."
+          onChange={onChange}
+          creatable
+          createLabel="Use manual model"
+        />,
+      );
+    });
+    expect(container.querySelector("button")?.textContent).toContain("custom/model");
+
+    act(() => {
+      root.unmount();
+    });
+  });
 });

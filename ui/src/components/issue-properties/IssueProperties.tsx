@@ -66,7 +66,6 @@ import type { IssueExternalObjectGroup } from "../../hooks/useIssueExternalObjec
 import { timeAgo } from "../../lib/timeAgo";
 import { invalidateInboxIssueQueries } from "../../lib/inboxArchiveCache";
 import { Button } from "@/components/ui/button";
-import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -742,8 +741,6 @@ export function IssueProperties({
     assigneeAdapterType,
     assigneeOverrideAdapterConfig,
   );
-  const assigneeOverrideChrome = assigneeAdapterType === "claude_local"
-    && assigneeOverrideAdapterConfig.chrome === true;
   const catalogProvider = assigneeAdapterType === "paperclip_runner" ? String(normalizeLegacyRunnerProvider(assigneePrimaryAdapterConfig).provider ?? "codex") : undefined;
   const { data: assigneeAdapterModels } = useQuery({
     queryKey:
@@ -829,7 +826,6 @@ export function IssueProperties({
       const details = [
         assigneeOverrideModel,
         assigneeOverrideThinkingEffort,
-        assigneeOverrideChrome ? "Chrome" : "",
       ].filter(Boolean);
       const summary = details.length > 0 ? `Override · ${details.join(" · ")}` : "Override · adapter options";
       return (
@@ -882,6 +878,8 @@ export function IssueProperties({
               noneLabel="Default model"
               searchPlaceholder="Search models..."
               emptyMessage="No models found."
+              creatable
+              createLabel="Use manual model"
               onChange={updateAssigneeOverrideModel}
             />
           </div>
@@ -902,15 +900,6 @@ export function IssueProperties({
               ))}
             </div>
           </div>
-          {assigneeAdapterType === "claude_local" ? (
-            <div className="flex items-center justify-between rounded-md border border-border px-2 py-1.5">
-              <div className="text-xs text-muted-foreground">Enable Chrome (--chrome)</div>
-              <ToggleSwitch
-                checked={assigneeOverrideChrome}
-                onCheckedChange={(next) => updateAssigneeOverrideConfig({ chrome: next ? true : undefined })}
-              />
-            </div>
-          ) : null}
         </>
       ) : null}
     </div>

@@ -69,6 +69,15 @@ export const ISSUE_THINKING_EFFORT_OPTIONS = {
     { value: "xhigh", label: "X-High" },
     { value: "max", label: "Max" },
   ],
+  copilot_local: [
+    { value: "", label: "Default" },
+    { value: "none", label: "None" },
+    { value: "low", label: "Low" },
+    { value: "medium", label: "Medium" },
+    { value: "high", label: "High" },
+    { value: "xhigh", label: "X-High" },
+    { value: "max", label: "Max" },
+  ],
 } as const;
 
 export function asRecord(value: unknown): Record<string, unknown> {
@@ -88,12 +97,14 @@ export function thinkingEffortOptionsFor(
   model?: string | null,
 ) {
   if (adapterType === "codex_local") return codexReasoningEffortOptions(model);
+  if (adapterType === "copilot_local") return ISSUE_THINKING_EFFORT_OPTIONS.copilot_local;
   if (adapterType === "opencode_local") return ISSUE_THINKING_EFFORT_OPTIONS.opencode_local;
   return ISSUE_THINKING_EFFORT_OPTIONS.claude_local;
 }
 
 export function thinkingEffortKeyFor(adapterType: string | null | undefined) {
   if (adapterType === "codex_local") return "modelReasoningEffort";
+  if (adapterType === "copilot_local") return "reasoningEffort";
   if (adapterType === "opencode_local") return "variant";
   return "effort";
 }
@@ -101,6 +112,9 @@ export function thinkingEffortKeyFor(adapterType: string | null | undefined) {
 export function thinkingEffortValueFor(adapterType: string | null | undefined, adapterConfig: Record<string, unknown>) {
   if (adapterType === "codex_local") {
     return String(adapterConfig.modelReasoningEffort ?? adapterConfig.reasoningEffort ?? adapterConfig.effort ?? "");
+  }
+  if (adapterType === "copilot_local") {
+    return String(adapterConfig.reasoningEffort ?? "");
   }
   if (adapterType === "opencode_local") {
     return String(adapterConfig.variant ?? "");

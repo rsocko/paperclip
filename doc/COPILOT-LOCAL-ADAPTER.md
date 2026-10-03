@@ -54,6 +54,23 @@ also launches Copilot with `--no-auto-update`, `--no-remote`,
 `--no-remote-export`, and ACP stdio. Use the default `copilot` command. Do not
 configure a remote execution target.
 
+## Task model overrides
+
+Agents keep their default `model` and `reasoningEffort` in the installed
+adapter configuration. A task can select a different model and reasoning
+effort without changing the agent. The Primary lane stores no task override.
+The Custom or Override lane stores only non-empty `model` and
+`reasoningEffort` values. Task values take precedence for that run.
+
+Paperclip rejects every other adapter configuration key from the task merge.
+Secrets, environment variables, permissions, timeouts, ACP mode, context
+settings, and extra arguments remain agent-level configuration.
+
+The model selector reads the adapter model API. Set
+`PAPERCLIP_ADAPTER_MODELS` to declare the available `copilot_local` models.
+The selector preserves an `auto` entry from that list and accepts a manual
+model ID. Paperclip does not perform authenticated model enumeration.
+
 ## Validation
 
 The image build runs the upstream adapter unit tests. It then verifies:

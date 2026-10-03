@@ -2322,6 +2322,66 @@ describe("IssueProperties", () => {
     act(() => root.unmount());
   });
 
+  it("edits Copilot task effort with the reasoningEffort key", async () => {
+    const onUpdate = vi.fn();
+    mockAgentsApi.list.mockResolvedValue([
+      {
+        id: "agent-1",
+        name: "Copilot Coder",
+        role: "engineer",
+        title: null,
+        status: "active",
+        adapterType: "copilot_local",
+        adapterConfig: { model: "auto" },
+        icon: null,
+      },
+    ]);
+    mockAgentsApi.adapterModels.mockResolvedValue([
+      { id: "auto", label: "Auto" },
+      { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
+    ]);
+
+    const root = renderProperties(container, {
+      issue: createIssue({
+        assigneeAgentId: "agent-1",
+        assigneeAdapterOverrides: {
+          adapterConfig: {
+            model: "claude-sonnet-5",
+            reasoningEffort: "high",
+          },
+        },
+      }),
+      childIssues: [],
+      onUpdate,
+    });
+    await flush();
+
+    const optionsTrigger = findRowTrigger(container, "Model");
+    expect(optionsTrigger?.textContent).toContain("claude-sonnet-5");
+    await act(async () => {
+      optionsTrigger!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await flush();
+
+    const xhigh = Array.from(container.querySelectorAll("button"))
+      .find((button) => button.textContent?.trim() === "X-High");
+    expect(xhigh).not.toBeUndefined();
+    await act(async () => {
+      xhigh!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onUpdate).toHaveBeenCalledWith({
+      assigneeAdapterOverrides: {
+        adapterConfig: {
+          model: "claude-sonnet-5",
+          reasoningEffort: "xhigh",
+        },
+      },
+    });
+
+    act(() => root.unmount());
+  });
+
   it("clears existing assignee adapter overrides from the properties pane", async () => {
     const onUpdate = vi.fn();
     mockAgentsApi.list.mockResolvedValue([
