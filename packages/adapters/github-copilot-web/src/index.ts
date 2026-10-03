@@ -35,7 +35,7 @@ Core fields:
 - createPullRequest (boolean, required): request provider PR creation
 - promptTemplate (string, optional): Paperclip prompt template
 - pollIntervalSec (number, optional): polling interval, default 10 and bounded to 5-60
-- env.GITHUB_TOKEN (required): user-to-server GitHub credential. Configure this as a user_secret_ref; never store a plaintext token.
+- env.GITHUB_TOKEN (required): user-to-server GitHub credential. Configure this as a required user_secret_ref owned by the responsible user; never use a company secret, installation token, or persisted plaintext token.
 
 Runtime guarantees:
 - No fallback to local Copilot CLI, another adapter, repository, or orchestrator.
@@ -43,4 +43,5 @@ Runtime guarantees:
 - Repository identity is verified before dispatch and on every provider response.
 - Provider task, session, model, branch, commit, PR, and usage references are returned in durable session/result data.
 - Existing Paperclip approval and budget admission gates run before the adapter's onDispatch boundary.
+- The cancellation diagnostic is informational. GitHub documents no cancellation endpoint, so Stop keeps reconciling until the provider reports a terminal state.
 `;

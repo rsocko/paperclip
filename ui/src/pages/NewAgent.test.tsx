@@ -168,7 +168,7 @@ beforeEach(() => {
     "copilot_local",
     "opencode_local",
     "pi_local",
-    "paperclip_runner", "cursor_cloud", "cursor", "gemini_local", "kimi_local", "grok_local", "hermes_local", "hermes_gateway",
+    "paperclip_runner", "cursor_cloud", "github_copilot_web", "cursor", "gemini_local", "kimi_local", "grok_local", "hermes_local", "hermes_gateway",
   ].map((type) => ({ type, loaded: true, disabled: false }));
   api.adapterModels.mockResolvedValue([]);
   api.list.mockResolvedValue([{ id: "ceo", role: "ceo", status: "idle" }]);
@@ -330,6 +330,107 @@ describe("New agent setup", () => {
     await click("Finish setup");
     expect(secrets.create).toHaveBeenCalledWith("company-1", expect.objectContaining({ value: "new-cursor-key" }));
     expect(api.hire.mock.calls[0][1].adapterConfig.env.CURSOR_API_KEY).toMatchObject({ type: "secret_ref", secretId: "org-secret-1" });
+  });
+  it("configures GitHub Copilot Cloud with exact repository and base ref plus a required user secret", async () => {
+    secrets.listMyUserSecrets.mockResolvedValue([{
+      definition: {
+        id: "github-token",
+        companyId: "company-1",
+        key: "GITHUB_TOKEN",
+        name: "GitHub Agent Tasks",
+        status: "active",
+      },
+      secret: { companyId: "company-1", status: "active" },
+    }]);
+    api.testEnvironment.mockResolvedValue({
+      adapterType: "github_copilot_web",
+      status: "pass",
+      checks: [
+        { code: "github_copilot_web_repository_ok", level: "info", message: "Verified octo/repo at main." },
+        { code: "github_copilot_web_cancellation_unavailable", level: "info", message: "Stop waits for GitHub." },
+      ],
+      testedAt: "2026-10-03T00:00:00Z",
+    });
+
+    await render("github_copilot_web");
+    expect(container.querySelector('[aria-label="GitHub repository"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Base ref"]')).not.toBeNull();
+    expect(container.textContent).toContain("user secret");
+    expect(container.textContent).not.toContain("organization secret");
+
+    await fill("GitHub repository", "octo/repo");
+    await fill("Base ref", "main");
+    await click("Run test");
+
+    const binding = {
+      type: "user_secret_ref",
+      key: "GITHUB_TOKEN",
+      version: "latest",
+      required: true,
+    };
+    expect(api.testEnvironment).toHaveBeenCalledWith(
+      "company-1",
+      "github_copilot_web",
+      expect.objectContaining({
+        adapterConfig: expect.objectContaining({
+          repository: "octo/repo",
+          baseRef: "main",
+          env: { GITHUB_TOKEN: binding },
+        }),
+        testCredentials: {},
+      }),
+    );
+
+    await click("Finish setup");
+    expect(api.hire).toHaveBeenCalledWith(
+      "company-1",
+      expect.objectContaining({
+        adapterType: "github_copilot_web",
+        adapterConfig: expect.objectContaining({
+          repository: "octo/repo",
+          baseRef: "main",
+          env: { GITHUB_TOKEN: binding },
+        }),
+      }),
+    );
+    expect(secrets.create).not.toHaveBeenCalled();
+    expect(JSON.stringify(api.hire.mock.calls)).not.toContain("ghp_");
+  });
+  it("tests an entered GitHub token transiently and stores only a required user-secret reference", async () => {
+    api.testEnvironment.mockResolvedValue({
+      ...pass,
+      adapterType: "github_copilot_web",
+    });
+    await render("github_copilot_web");
+    await fill("GitHub repository", "octo/repo");
+    await fill("Base ref", "main");
+    await fill("GITHUB_TOKEN", "entered-user-token");
+    await click("Run test");
+
+    expect(api.testEnvironment.mock.calls[0][2]).toMatchObject({
+      adapterConfig: {
+        repository: "octo/repo",
+        baseRef: "main",
+      },
+      testCredentials: { GITHUB_TOKEN: "entered-user-token" },
+    });
+    expect(JSON.stringify(api.testEnvironment.mock.calls[0][2].adapterConfig)).not.toContain(
+      "entered-user-token",
+    );
+
+    await click("Finish setup");
+    const config = api.hire.mock.calls[0][1].adapterConfig;
+    expect(config.env.GITHUB_TOKEN).toMatchObject({
+      type: "user_secret_ref",
+      required: true,
+    });
+    expect(secrets.createUserSecretDefinition).toHaveBeenCalledTimes(1);
+    expect(secrets.createMyUserSecret).toHaveBeenCalledWith(
+      "company-1",
+      expect.objectContaining({ value: "entered-user-token" }),
+    );
+    expect(JSON.stringify(config)).not.toContain("entered-user-token");
+    expect(secrets.create).not.toHaveBeenCalled();
   });
   it.each([
     ["cursor", "CURSOR_API_KEY"],
