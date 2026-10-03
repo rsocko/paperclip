@@ -989,6 +989,20 @@ function Setup({
                                 </select>
                               </Field>
                             )}
+                            {adapterType === "github_copilot_web" && (
+                              <div className="rounded-md border border-border bg-muted/30 px-3 py-2 sm:col-span-2">
+                                <p className="text-sm font-medium">
+                                  {savedKey
+                                    ? `Using your saved secret: ${savedKey.definition.name}`
+                                    : "No personal GITHUB_TOKEN is saved"}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {savedKey
+                                    ? "Leave the token field blank to keep using it, or paste a new token to replace your value."
+                                    : "Paste a user-to-server token below. Paperclip saves it to My secrets after the environment test passes."}
+                                </p>
+                              </div>
+                            )}
                             <div
                               className={
                                 adapterType === "cursor_cloud"
@@ -1010,12 +1024,16 @@ function Setup({
                                     }}
                                     placeholder={
                                       selectedBinding
-                                        ? "Using saved key"
+                                        ? adapterType === "github_copilot_web"
+                                          ? "Leave blank to use your saved secret"
+                                          : "Using saved key"
                                         : [
                                               "cursor_cloud",
                                               "hermes_gateway",
                                             ].includes(adapterType)
                                           ? "Required"
+                                          : adapterType === "github_copilot_web"
+                                            ? "Paste a user-to-server token"
                                           : "Optional if already configured"
                                     }
                                   />

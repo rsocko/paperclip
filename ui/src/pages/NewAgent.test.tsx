@@ -355,7 +355,10 @@ describe("New agent setup", () => {
     await render("github_copilot_web");
     expect(container.querySelector('[aria-label="GitHub repository"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Base ref"]')).not.toBeNull();
-    expect(container.textContent).toContain("user secret");
+    expect(container.textContent).toContain("Using your saved secret: GitHub Agent Tasks");
+    expect(container.textContent).toContain("Leave the token field blank to keep using it");
+    expect((container.querySelector('[aria-label="GITHUB_TOKEN"]') as HTMLInputElement).placeholder)
+      .toBe("Leave blank to use your saved secret");
     expect(container.textContent).not.toContain("organization secret");
 
     await fill("GitHub repository", "octo/repo");
@@ -402,6 +405,10 @@ describe("New agent setup", () => {
       adapterType: "github_copilot_web",
     });
     await render("github_copilot_web");
+    expect(container.textContent).toContain("No personal GITHUB_TOKEN is saved");
+    expect(container.textContent).toContain("Paperclip saves it to My secrets");
+    expect((container.querySelector('[aria-label="GITHUB_TOKEN"]') as HTMLInputElement).placeholder)
+      .toBe("Paste a user-to-server token");
     await fill("GitHub repository", "octo/repo");
     await fill("Base ref", "main");
     await fill("GITHUB_TOKEN", "entered-user-token");
