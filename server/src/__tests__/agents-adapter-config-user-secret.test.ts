@@ -185,6 +185,7 @@ describeEmbeddedPostgres("agents adapter-config user-secret resolution routes", 
   });
 
   afterEach(async () => {
+    vi.unstubAllGlobals();
     await db.delete(activityLog);
     await db.delete(secretAccessEvents);
     await db.delete(userSecretDeclarations);
@@ -268,6 +269,66 @@ describeEmbeddedPostgres("agents adapter-config user-secret resolution routes", 
     // The resolved (secret) value reached the adapter probe.
     expect(testEnvironmentSpy).toHaveBeenCalledTimes(1);
     expect(testEnvironmentSpy.mock.calls[0][0].config.env.GH_TOKEN).toBe("ghp_owner");
+  });
+
+  it("tests GitHub Copilot Cloud with the acting user's resolved token and returns no credential", async () => {
+    beforeEachActor(boardUserActor);
+    await seedUserSecretDefinitionWithValue("GITHUB_TOKEN", "resolved-user-token");
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/repos/octo/repo")) {
+        return new Response(JSON.stringify({
+          id: 101,
+          full_name: "octo/repo",
+          default_branch: "main",
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (url.includes("/git/ref/heads/main")) {
+        return new Response(JSON.stringify({ object: { sha: "base-sha" } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (url.endsWith("/graphql")) {
+        return new Response(JSON.stringify({
+          data: {
+            repository: {
+              id: "R_repo",
+              suggestedActors: {
+                nodes: [{ __typename: "Bot", id: "BOT_copilot", login: "copilot-swe-agent" }],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          },
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      throw new Error(`Unexpected GitHub request: ${url}`);
+    }));
+    const app = await createApp();
+
+    const res = await request(app)
+      .post(`/api/companies/${COMPANY_ID}/adapters/github_copilot_web/test-environment`)
+      .send({
+        adapterConfig: {
+          repository: "octo/repo",
+          baseRef: "main",
+          env: {
+            GITHUB_TOKEN: {
+              type: "user_secret_ref",
+              key: "GITHUB_TOKEN",
+              version: "latest",
+              required: true,
+            },
+          },
+        },
+      });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body).toMatchObject({
+      adapterType: "github_copilot_web",
+      status: "pass",
+    });
+    expect(JSON.stringify(res.body)).not.toContain("resolved-user-token");
   });
 
   it("test-environment throws responsible_user_missing when no responsible user", async () => {

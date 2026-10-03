@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CreateConfigValues } from "@paperclipai/adapter-utils";
 import { buildGitHubCopilotWebConfig } from "./build-config.js";
+import { getConfigSchema } from "../server/index.js";
 
 function values(overrides: Partial<CreateConfigValues>): CreateConfigValues {
   return {
@@ -37,6 +38,12 @@ function values(overrides: Partial<CreateConfigValues>): CreateConfigValues {
 }
 
 describe("buildGitHubCopilotWebConfig", () => {
+  it("declares the required repository and base-ref fields for create and edit forms", () => {
+    const fields = new Map(getConfigSchema().fields.map((field) => [field.key, field]));
+    expect(fields.get("repository")).toMatchObject({ type: "text", required: true });
+    expect(fields.get("baseRef")).toMatchObject({ type: "text", required: true });
+  });
+
   it("preserves schema inputs and user-secret credential references", () => {
     expect(buildGitHubCopilotWebConfig(values({
       adapterSchemaValues: {

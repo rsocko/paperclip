@@ -16,8 +16,18 @@ Copilot CLI, ACP, Mission Control, or another Paperclip adapter.
 - Read access to repository metadata, refs, pull requests, and commits so
   Paperclip can verify repository identity and resolve provider artifacts.
 
-Store the credential as a Paperclip user secret and bind it to
-`env.GITHUB_TOKEN`. Do not put the token directly in `adapterConfig`:
+In **New agent → GitHub Copilot Cloud**, enter the repository as exact
+`owner/repo` text and enter an existing base branch or ref. Enter a
+user-to-server token or reuse your active `GITHUB_TOKEN` user secret. Paperclip
+tests an entered token without storing it, then saves it as a user-owned secret
+only after setup succeeds.
+
+The agent stores only a required `user_secret_ref` at `env.GITHUB_TOKEN`.
+The signed-in responsible user's value is resolved at test and run time.
+Organization secrets, GitHub App installation tokens, plaintext adapter config,
+and environment-level ambient tokens are not substitutes for this binding.
+Edit an existing agent on its **Configuration** and **Environment variables**
+sections to change the repository, base ref, or user-secret binding:
 
 ```json
 {
@@ -31,7 +41,7 @@ Store the credential as a Paperclip user secret and bind it to
     "env": {
       "GITHUB_TOKEN": {
         "type": "user_secret_ref",
-        "key": "github_agent_tasks",
+        "key": "GITHUB_TOKEN",
         "required": true
       }
     }
@@ -42,6 +52,11 @@ Store the credential as a Paperclip user secret and bind it to
 Optional `headRef` continues an existing branch or matching pull request.
 Optional `customAgent` is the `.github/agents/*.agent.md` filename without its
 extension. Omitting `model` lets GitHub select a model.
+
+**Test environment** verifies the repository identity, base ref, token access,
+Copilot entitlement, and repository eligibility. The cancellation check is
+informational. A valid setup returns `pass` even though Stop must wait for GitHub
+to reach a terminal task state.
 
 ## Lifecycle and recovery
 

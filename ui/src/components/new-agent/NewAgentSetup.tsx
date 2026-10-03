@@ -280,6 +280,15 @@ function Setup({
   const selectedBinding =
     adapterType === "cursor_cloud"
       ? null
+      : adapterType === "github_copilot_web"
+        ? (savedKey
+          ? {
+              type: "user_secret_ref" as const,
+              key: envKey,
+              version: "latest" as const,
+              required: true,
+            }
+          : null)
       : (providerBinding ??
         (savedOrganizationKey
           ? {
@@ -340,6 +349,15 @@ function Setup({
       thinkingEffort: effort,
       dangerouslyBypassSandbox: adapterType === "codex_local",
       envBindings: nextConnection?.env ?? {},
+      ...(adapterType === "github_copilot_web"
+        ? {
+            adapterSchemaValues: {
+              repository: repository.trim(),
+              baseRef: branch.trim(),
+              createPullRequest: true,
+            },
+          }
+        : {}),
       ...(isRunner
         ? {
             adapterSchemaValues: {
@@ -366,6 +384,12 @@ function Setup({
         repoUrl: repository.trim(),
         ...(branch.trim() ? { repoStartingRef: branch.trim() } : {}),
       });
+    if (adapterType === "github_copilot_web" && binding) {
+      config.env = {
+        ...((config.env as object) ?? {}),
+        GITHUB_TOKEN: binding,
+      };
+    }
     if (adapterType === "hermes_gateway") config.apiBaseUrl = gatewayUrl.trim();
     if (usingKimiApi) {
       // --model overrides Kimi's environment-defined model. Let KIMI_MODEL_NAME win.
@@ -392,13 +416,22 @@ function Setup({
     )
       throw new Error("Enter a GitHub repository URL.");
     if (
-      ["cursor_cloud", "hermes_gateway"].includes(adapterType) &&
+      adapterType === "github_copilot_web" &&
+      !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository.trim())
+    )
+      throw new Error("Enter the repository as an exact owner/repo value.");
+    if (adapterType === "github_copilot_web" && !branch.trim())
+      throw new Error("Enter an existing base ref.");
+    if (
+      ["cursor_cloud", "github_copilot_web", "hermes_gateway"].includes(adapterType) &&
       !apiKey.trim() &&
       !selectedBinding
     )
       throw new Error(
         adapterType === "cursor_cloud"
           ? "Enter a Cursor API key."
+          : adapterType === "github_copilot_web"
+            ? "Enter a user-to-server GitHub token or save one as your GITHUB_TOKEN user secret."
           : `Enter ${envKey} or select an organization secret.`,
       );
     if (adapterType === "hermes_gateway") {
@@ -483,7 +516,7 @@ function Setup({
       // Untested entered keys must pass a probe before they can be stored.
       if (Object.keys(credentials).length && !(await runTest())) return;
       for (const [key, value] of Object.entries(credentials)) {
-        const store = connectionAdapter
+        const store = connectionAdapter || adapterType === "github_copilot_web"
           ? storeProviderApiKey
           : storeOrganizationApiKey;
         const secret = await store(companyId, key, value);
@@ -493,7 +526,9 @@ function Setup({
         else
           config.env = {
             ...((config.env as object) ?? {}),
-            [key]: secret.binding,
+            [key]: adapterType === "github_copilot_web"
+              ? { ...secret.binding, required: true }
+              : secret.binding,
           };
       }
       const existing = agents.data ?? [];
@@ -997,7 +1032,7 @@ function Setup({
                                 </div>
                               </Field>
                             </div>
-                            {adapterType !== "cursor_cloud" && (
+                            {!["cursor_cloud", "github_copilot_web"].includes(adapterType) && (
                               <div
                                 className={
                                   chooseProvider ? "sm:col-span-2" : undefined
@@ -1028,8 +1063,9 @@ function Setup({
                               </div>
                             )}
                             <p className="text-xs text-muted-foreground sm:col-span-2">
-                              New keys are saved as organization secrets when
-                              you finish setup.
+                              {adapterType === "github_copilot_web"
+                                ? "GitHub requires a user-to-server token with Agent tasks read and write. A new token is saved as your required GITHUB_TOKEN user secret. Installation tokens are not supported."
+                                : "New keys are saved as organization secrets when you finish setup."}
                               {multiProvider && ` Use a ${provider}/model ID.`}
                             </p>
                           </div>
@@ -1110,6 +1146,38 @@ function Setup({
                               <Input
                                 aria-label="Branch"
                                 placeholder="Repository default"
+                                value={branch}
+                                onChange={(event) => {
+                                  setBranch(event.target.value);
+                                  resetTest();
+                                }}
+                              />
+                            </Field>
+                          </div>
+                        )}
+                        {adapterType === "github_copilot_web" && (
+                          <div className="grid gap-5 sm:grid-cols-2">
+                            <Field
+                              label="GitHub repository"
+                              hint="Enter one exact owner/repo target. Paperclip never falls back to another repository."
+                            >
+                              <Input
+                                aria-label="GitHub repository"
+                                value={repository}
+                                onChange={(event) => {
+                                  setRepository(event.target.value);
+                                  resetTest();
+                                }}
+                                placeholder="owner/repo"
+                              />
+                            </Field>
+                            <Field
+                              label="Base ref"
+                              hint="Enter an existing branch used as the base for every cloud task."
+                            >
+                              <Input
+                                aria-label="Base ref"
+                                placeholder="main"
                                 value={branch}
                                 onChange={(event) => {
                                   setBranch(event.target.value);

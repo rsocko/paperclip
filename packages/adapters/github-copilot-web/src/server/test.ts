@@ -88,7 +88,7 @@ export async function testEnvironment(
   }
   checks.push({
     code: "github_copilot_web_cancellation_unavailable",
-    level: "warn",
+    level: "info",
     message: "GitHub currently documents no Agent Tasks cancellation endpoint.",
     detail: "Paperclip Stop remains pending while the adapter reconciles the provider to a terminal state.",
   });

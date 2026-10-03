@@ -1374,6 +1374,11 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
           ? set!({ envBindings: env ?? {}, envVars: "" })
           : mark("adapterConfig", "env", env)
       }
+      footerHint={
+        adapterType === "github_copilot_web"
+          ? "Bind GITHUB_TOKEN to a required user secret owned by the responsible user. GitHub Agent Tasks does not accept installation tokens."
+          : undefined
+      }
     />
   );
 
@@ -1921,14 +1926,16 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
         </div>
       )}
 
-      {props.environmentVariablesPlacement !== "secrets" && (isLocal || configSchema?.fields.some((field) => schemaFieldSection(field.key) === "environment")) && (
+      {props.environmentVariablesPlacement !== "secrets" && (isLocal || adapterType === "github_copilot_web" || configSchema?.fields.some((field) => schemaFieldSection(field.key) === "environment")) && (
         <div data-config-section="environment-variables" className={cn(!cards && "border-b border-border")}>
           {cards
             ? <h3 className="text-sm font-medium mb-3">Environment variables</h3>
             : <div className="px-4 py-2 text-xs font-medium text-muted-foreground">Environment variables</div>
           }
           <div className={cn(cards ? "border border-border rounded-lg p-4 space-y-3" : "px-4 pb-3 space-y-3")}>
-            {isLocal ? environmentVariablesEditor : renderAdapterFields("environment")}
+            {isLocal || adapterType === "github_copilot_web"
+              ? environmentVariablesEditor
+              : renderAdapterFields("environment")}
           </div>
         </div>
       )}
