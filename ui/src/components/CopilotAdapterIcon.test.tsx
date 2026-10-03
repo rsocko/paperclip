@@ -12,6 +12,7 @@ describe("Copilot adapter mode icons", () => {
 
     expect(markup).toContain('data-adapter-icon="github-copilot-cli"');
     expect(markup).toContain('aria-hidden="true"');
+    expect(markup).toContain('fill="var(--adapter-copilot-anchor)"');
     expect(markup).toContain("<rect");
     expect(markup).toContain("var(--adapter-copilot-prompt)");
     expect(markup).not.toContain("cloud");
@@ -22,6 +23,7 @@ describe("Copilot adapter mode icons", () => {
 
     expect(markup).toContain('data-adapter-icon="github-copilot-cloud"');
     expect(markup).toContain('aria-hidden="true"');
+    expect(markup).toContain('fill="var(--adapter-copilot-anchor)"');
     expect(markup).toContain("var(--adapter-copilot-cloud-accent)");
     expect(markup).not.toContain("<rect");
   });
