@@ -1,6 +1,7 @@
 export const ISSUE_OVERRIDE_ADAPTER_TYPES = new Set([
   "claude_local",
   "codex_local",
+  "copilot_local",
   "opencode_local",
 ]);
 
@@ -11,7 +12,6 @@ export interface BuildAssigneeAdapterOverridesInput {
   lane: IssueModelLane;
   modelOverride: string;
   thinkingEffortOverride: string;
-  chrome: boolean;
 }
 
 /**
@@ -19,8 +19,7 @@ export interface BuildAssigneeAdapterOverridesInput {
  *
  * Lane semantics:
  * - "primary" → no overrides, runs on the agent's primary model.
- * - "custom"  → preserves the legacy explicit override path
- *               (`adapterConfig.model`, thinking effort, chrome).
+ * - "custom"  → preserves the explicit model and thinking-effort override path.
  */
 export function buildAssigneeAdapterOverrides(
   input: BuildAssigneeAdapterOverridesInput,
@@ -39,14 +38,13 @@ export function buildAssigneeAdapterOverrides(
   if (input.thinkingEffortOverride) {
     if (adapterType === "codex_local") {
       adapterConfig.modelReasoningEffort = input.thinkingEffortOverride;
+    } else if (adapterType === "copilot_local") {
+      adapterConfig.reasoningEffort = input.thinkingEffortOverride;
     } else if (adapterType === "opencode_local") {
       adapterConfig.variant = input.thinkingEffortOverride;
     } else if (adapterType === "claude_local") {
       adapterConfig.effort = input.thinkingEffortOverride;
     }
-  }
-  if (adapterType === "claude_local" && input.chrome) {
-    adapterConfig.chrome = true;
   }
 
   if (Object.keys(adapterConfig).length === 0) return null;

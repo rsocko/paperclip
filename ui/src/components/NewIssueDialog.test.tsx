@@ -618,6 +618,80 @@ describe("NewIssueDialog", () => {
     act(() => root.unmount());
   });
 
+  it("creates a Copilot task with an explicit reasoning effort override", async () => {
+    mockAgentsApi.list.mockResolvedValue([
+      {
+        id: "agent-1",
+        name: "Copilot Coder",
+        status: "active",
+        adapterType: "copilot_local",
+        adapterConfig: { model: "auto" },
+        runtimeConfig: {},
+        permissions: {},
+      },
+    ]);
+    mockAgentsApi.adapterModels.mockResolvedValue([
+      { id: "auto", label: "Auto" },
+      { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
+    ]);
+    dialogState.newIssueDefaults = {
+      title: "Use Copilot override",
+      assigneeAgentId: "agent-1",
+    };
+
+    const { root } = renderDialog(container);
+    await waitForAssertion(() => {
+      expect(container.textContent).toContain("Copilot options");
+    });
+
+    const copilotOptionsButton = Array.from(container.querySelectorAll("button"))
+      .find((button) => button.textContent?.includes("Copilot options"));
+    await act(async () => {
+      copilotOptionsButton!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    const customLane = Array.from(container.querySelectorAll('button[role="radio"]'))
+      .find((button) => button.textContent?.trim() === "Custom");
+    await act(async () => {
+      customLane!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForAssertion(() => {
+      expect(mockAgentsApi.adapterModels).toHaveBeenCalledWith(
+        "company-1",
+        "copilot_local",
+        { provider: undefined },
+      );
+    });
+    const xhigh = Array.from(container.querySelectorAll("button"))
+      .find((button) => button.textContent?.trim() === "X-High");
+    await act(async () => {
+      xhigh!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const submitButton = Array.from(container.querySelectorAll("button"))
+      .find((button) => button.textContent?.includes("Create Task"));
+    expect(submitButton).not.toBeUndefined();
+    await waitForAssertion(() => {
+      expect(submitButton?.hasAttribute("disabled")).toBe(false);
+    });
+    await act(async () => {
+      submitButton!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await flush();
+
+    expect(mockIssuesApi.create).toHaveBeenCalledWith(
+      "company-1",
+      expect.objectContaining({
+        assigneeAdapterOverrides: {
+          adapterConfig: {
+            reasoningEffort: "xhigh",
+          },
+        },
+      }),
+    );
+
+    act(() => root.unmount());
+  });
+
   it("warns when the selected assignee is a paused imported agent", async () => {
     dialogState.newIssueDefaults = {
       title: "Compare onboarding flows",
