@@ -3,8 +3,7 @@ name: Copilot local image
 on:
   push:
     branches:
-      - rsocko-fix-codex-gateway-probe
-      - rsocko-paperclip-copilot-image
+      - master
   workflow_dispatch:
 
 permissions: {}
@@ -128,7 +127,7 @@ jobs:
         run: |
           set -euo pipefail
           tags=(-t "${IMAGE}:${IMMUTABLE_TAG}")
-          if [ "$GITHUB_REF" = "refs/heads/rsocko-fix-codex-gateway-probe" ]; then
+          if [ "$GITHUB_REF" = "refs/heads/master" ]; then
             tags+=(-t "${IMAGE}:copilot-local")
           fi
           docker buildx imagetools create \

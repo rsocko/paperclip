@@ -84,6 +84,11 @@ The image build runs the upstream adapter unit tests. It then verifies:
 
 The GHCR workflow repeats the image assertion against the published AMD64
 digest. It also verifies an anonymous registry pull before it completes.
+Every push to `master` publishes a multi-platform image at
+`ghcr.io/rsocko/paperclip:copilot-local-sha-<full-master-sha>` and records a
+registry attestation. Deploy the immutable tag together with its resolved
+`sha256` manifest digest. The `copilot-local` tag is only a convenience channel
+and is not a deployment handoff.
 
 For synthetic authenticated validation:
 
