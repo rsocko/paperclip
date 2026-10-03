@@ -12,6 +12,7 @@ import { useBreadcrumbs } from "@/context/BreadcrumbContext";
 import { adaptersApi } from "@/api/adapters";
 import type { AdapterInfo } from "@/api/adapters";
 import { getAdapterLabel } from "@/adapters/adapter-display-registry";
+import { AdapterMark } from "@/components/AdapterMark";
 import { queryKeys } from "@/lib/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +34,7 @@ import { ChoosePathButton } from "@/components/PathInstructionsModal";
 import { invalidateDynamicParser } from "@/adapters/dynamic-loader";
 import { invalidateConfigSchemaCache } from "@/adapters/schema-config-fields";
 
-function AdapterRow({
+export function AdapterRow({
   adapter,
   canRemove,
   onToggle,
@@ -69,6 +70,9 @@ function AdapterRow({
   return (
     <li>
       <div className="flex items-center gap-4 px-4 py-3">
+        <span className="flex size-6 shrink-0 items-center justify-center" aria-hidden="true">
+          <AdapterMark type={adapter.type} className="size-6 shrink-0" />
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className={cn("font-medium", adapter.disabled && "text-muted-foreground line-through")}>

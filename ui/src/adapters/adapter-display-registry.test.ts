@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { GithubIcon } from "@/components/icons/github-icon";
+import {
+  GitHubCopilotCliIcon,
+  GitHubCopilotCloudIcon,
+} from "@/components/CopilotAdapterIcon";
 import { getAdapterDisplay, getAdapterLabel, getAdapterLabels } from "./adapter-display-registry";
 
 describe("adapter display registry", () => {
   it("uses user-facing labels without the legacy local qualifier for built-in adapters", () => {
     expect(getAdapterLabel("codex_local")).toBe("Codex");
-    expect(getAdapterLabel("copilot_local")).toBe("GitHub Copilot");
+    expect(getAdapterLabel("copilot_local")).toBe("GitHub Copilot CLI");
     expect(getAdapterLabel("claude_local")).toBe("Claude Code");
     expect(getAdapterLabel("acpx_local")).toBe("ACPX (retired)");
     expect(getAdapterLabel("cursor")).toBe("Cursor");
@@ -20,7 +23,6 @@ describe("adapter display registry", () => {
 
     expect(getAdapterLabels()).toMatchObject({
       codex_local: "Codex",
-      copilot_local: "GitHub Copilot",
       claude_local: "Claude Code",
       acpx_local: "ACPX (retired)",
       cursor: "Cursor",
@@ -31,14 +33,19 @@ describe("adapter display registry", () => {
       hermes_gateway: "Hermes Gateway",
       opencode_local: "OpenCode",
       pi_local: "Pi",
+      copilot_local: "GitHub Copilot CLI",
+      github_copilot_web: "GitHub Copilot Cloud",
     });
   });
 
-  it("uses the GitHub mark for the local Copilot adapter", () => {
+  it("maps both GitHub Copilot runtimes to distinct mode icons", () => {
     expect(getAdapterDisplay("copilot_local")).toMatchObject({
-      label: "GitHub Copilot",
-      description: "GitHub Copilot CLI harness",
-      icon: GithubIcon,
+      label: "GitHub Copilot CLI",
+      icon: GitHubCopilotCliIcon,
+    });
+    expect(getAdapterDisplay("github_copilot_web")).toMatchObject({
+      label: "GitHub Copilot Cloud",
+      icon: GitHubCopilotCloudIcon,
     });
   });
 

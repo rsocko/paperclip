@@ -163,6 +163,27 @@ Use in property rows, comment headers, assignee displays, and anywhere a user/ag
 <InlineEditor value={title} onSave={updateTitle} as="h2" className="text-xl font-bold" />
 ```
 
+### CopilotAdapterIcon
+
+**File:** `CopilotAdapterIcon.tsx`
+**Exports:** `GitHubCopilotCliIcon`, `GitHubCopilotCloudIcon`
+**Usage:** Shared GitHub identity mark with shape-distinct local terminal and hosted cloud mode badges.
+
+```tsx
+<GitHubCopilotCliIcon className="size-6" />
+<GitHubCopilotCloudIcon className="size-6" />
+```
+
+### AdapterMark
+
+**File:** `AdapterMark.tsx`
+**Props:** `type: string`, `className?: string`
+**Usage:** Renders the central adapter display registry icon, with theme-aware official brand assets where available.
+
+```tsx
+<AdapterMark type="github_copilot_web" />
+```
+
 ### PageSkeleton
 
 **File:** `PageSkeleton.tsx`
