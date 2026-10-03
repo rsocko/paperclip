@@ -1078,12 +1078,29 @@ function Setup({
                                 </Field>
                               </div>
                             )}
-                            <p className="text-xs text-muted-foreground sm:col-span-2">
-                              {adapterType === "github_copilot_web"
-                                ? "GitHub requires a user-to-server token with Agent tasks read and write. A new token is saved as your required GITHUB_TOKEN user secret. Installation tokens are not supported."
-                                : "New keys are saved as organization secrets when you finish setup."}
-                              {multiProvider && ` Use a ${provider}/model ID.`}
-                            </p>
+                            {adapterType === "github_copilot_web" ? (
+                              <div className="space-y-1 text-xs text-muted-foreground sm:col-span-2">
+                                <p>
+                                  Use a fine-grained PAT owned by the responsible user. Give it access to the exact repository above and set <span className="font-medium text-foreground">Repository permissions → Agent tasks</span> to <span className="font-medium text-foreground">Read and write</span>. Authorize the token if the organization requires approval or SSO.
+                                </p>
+                                <p>
+                                  Paperclip saves a new token as your required GITHUB_TOKEN user secret. GitHub App user access tokens are also supported; installation tokens are not.{" "}
+                                  <a
+                                    href="https://docs.paperclip.ing/adapters/github-copilot-cloud/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline underline-offset-4 hover:text-foreground"
+                                  >
+                                    GitHub Copilot Cloud setup guide
+                                  </a>
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground sm:col-span-2">
+                                New keys are saved as organization secrets when you finish setup.
+                                {multiProvider && ` Use a ${provider}/model ID.`}
+                              </p>
+                            )}
                           </div>
                         )}
                         {adapterType === "hermes_gateway" && (

@@ -360,6 +360,11 @@ describe("New agent setup", () => {
     expect((container.querySelector('[aria-label="GITHUB_TOKEN"]') as HTMLInputElement).placeholder)
       .toBe("Leave blank to use your saved secret");
     expect(container.textContent).not.toContain("organization secret");
+    expect(container.textContent).toContain("Repository permissions → Agent tasks");
+    expect(container.textContent).toContain("Authorize the token if the organization requires approval or SSO");
+    expect(
+      container.querySelector('a[href="https://docs.paperclip.ing/adapters/github-copilot-cloud/"]'),
+    ).not.toBeNull();
 
     await fill("GitHub repository", "octo/repo");
     await fill("Base branch", "main");
