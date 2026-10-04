@@ -336,8 +336,10 @@ describe("New agent setup", () => {
       definition: {
         id: "github-token",
         companyId: "company-1",
-        key: "GITHUB_TOKEN",
+        key: "GITHUB_TOKEN.setup.existing",
         name: "GitHub Agent Tasks",
+        description: "Added while setting up Agent One.",
+        usageGuidance: "Repository: octo/one. Agent tasks: read and write.",
         status: "active",
       },
       secret: { companyId: "company-1", status: "active" },
@@ -356,7 +358,9 @@ describe("New agent setup", () => {
     expect(container.querySelector('[aria-label="GitHub repository"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Base branch"]')).not.toBeNull();
     expect(container.textContent).toContain("Using your saved secret: GitHub Agent Tasks");
-    expect(container.textContent).toContain("Leave the token field blank to keep using it");
+    expect(container.textContent).toContain("Added while setting up Agent One.");
+    expect(container.textContent).toContain("Repository: octo/one.");
+    expect(container.textContent).toContain("Leave the token field blank to reuse it");
     expect((container.querySelector('[aria-label="GITHUB_TOKEN"]') as HTMLInputElement).placeholder)
       .toBe("Leave blank to use your saved secret");
     expect(container.textContent).not.toContain("organization secret");
@@ -372,7 +376,7 @@ describe("New agent setup", () => {
 
     const binding = {
       type: "user_secret_ref",
-      key: "GITHUB_TOKEN",
+      key: "GITHUB_TOKEN.setup.existing",
       version: "latest",
       required: true,
     };
@@ -441,8 +445,64 @@ describe("New agent setup", () => {
       "company-1",
       expect.objectContaining({ value: "entered-user-token" }),
     );
+    expect(secrets.createUserSecretDefinition).toHaveBeenCalledWith(
+      "company-1",
+      expect.objectContaining({
+        name: "GITHUB_TOKEN · Atlas",
+        description: "Added while setting up GitHub Copilot Cloud agent Atlas.",
+        usageGuidance: expect.stringContaining(
+          "Repository permissions → Agent tasks (read and write)",
+        ),
+      }),
+    );
     expect(JSON.stringify(config)).not.toContain("entered-user-token");
     expect(secrets.create).not.toHaveBeenCalled();
+  });
+  it("lets GitHub Copilot Cloud choose among saved setup tokens", async () => {
+    secrets.listMyUserSecrets.mockResolvedValue([
+      {
+        definition: {
+          id: "github-token-one",
+          companyId: "company-1",
+          key: "GITHUB_TOKEN.setup.one",
+          name: "Agent One token",
+          status: "active",
+        },
+        secret: { companyId: "company-1", status: "active" },
+      },
+      {
+        definition: {
+          id: "github-token-two",
+          companyId: "company-1",
+          key: "GITHUB_TOKEN.setup.two",
+          name: "Agent Two token",
+          status: "active",
+        },
+        secret: { companyId: "company-1", status: "active" },
+      },
+    ]);
+    await render("github_copilot_web");
+    const select = container.querySelector(
+      '[aria-label="Saved GITHUB_TOKEN"]',
+    ) as HTMLSelectElement;
+    expect([...select.options].map((option) => option.textContent)).toEqual([
+      "Agent One token (Your key)",
+      "Agent Two token (Your key)",
+      "Enter a new token",
+    ]);
+    await act(async () => {
+      select.value = "user:github-token-two";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+    await fill("GitHub repository", "octo/repo");
+    await fill("Base branch", "main");
+    await click("Run test");
+    expect(api.testEnvironment.mock.calls[0][2].adapterConfig.env.GITHUB_TOKEN).toMatchObject({
+      type: "user_secret_ref",
+      key: "GITHUB_TOKEN.setup.two",
+      required: true,
+    });
   });
   it.each([
     ["cursor", "CURSOR_API_KEY"],

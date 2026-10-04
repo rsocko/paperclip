@@ -38,12 +38,19 @@ export async function storeProviderApiKey(
   companyId: string,
   envKey: string,
   value: string,
+  details?: {
+    name?: string;
+    description?: string;
+    usageGuidance?: string;
+  },
 ) {
   const key = `${envKey}.setup.${crypto.randomUUID()}`;
   const definition = await secretsApi.createUserSecretDefinition(companyId, {
     key,
-    name: `${envKey} · agent setup`,
-    description: "Model provider credential for a new agent setup.",
+    name: details?.name ?? `${envKey} · agent setup`,
+    description:
+      details?.description ?? "Model provider credential for a new agent setup.",
+    usageGuidance: details?.usageGuidance,
   });
   const remove = () =>
     secretsApi.removeUserSecretDefinition(companyId, definition.id);
