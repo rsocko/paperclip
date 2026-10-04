@@ -47,6 +47,7 @@ import {
   storeProviderApiKey,
   storeOrganizationApiKey,
 } from "@/lib/provider-credential";
+import { savedProviderKeys } from "@/lib/saved-provider-credentials";
 import { defaultCreateValues } from "../agent-config-defaults";
 import { ModelDropdown } from "../AgentConfigForm";
 import { Field } from "../agent-config-primitives";
@@ -148,6 +149,9 @@ function Setup({
   const [providerBinding, setProviderBinding] = useState<EnvBinding | null>(
     null,
   );
+  const [selectedSavedCredentialId, setSelectedSavedCredentialId] = useState<
+    string | null
+  >(null);
   const [runtimeAiBinding, setRuntimeAiBinding] = useState<AiConnectionBinding | undefined>(() =>
     brandType === "opencode_local"
       ? { provider: "openrouter", method: "api_key", mode: "responsible_user" }
@@ -274,6 +278,22 @@ function Setup({
   const savedKey = userSecrets.data?.find(
     (entry) => entry.definition.key === envKey && entry.secret,
   );
+  const githubSavedCredentials =
+    adapterType === "github_copilot_web"
+      ? savedProviderKeys(
+          companyId,
+          envKey,
+          userSecrets.data ?? [],
+          [],
+        )
+      : [];
+  const effectiveSavedCredentialId =
+    selectedSavedCredentialId ??
+    githubSavedCredentials[0]?.id ??
+    "";
+  const selectedGithubEntry = userSecrets.data?.find(
+    (entry) => `user:${entry.definition.id}` === effectiveSavedCredentialId,
+  );
   const savedOrganizationKey = companySecrets.data?.find(
     (entry) => entry.key === envKey && entry.status === "active",
   );
@@ -281,10 +301,10 @@ function Setup({
     adapterType === "cursor_cloud"
       ? null
       : adapterType === "github_copilot_web"
-        ? (savedKey
+        ? (selectedGithubEntry
           ? {
               type: "user_secret_ref" as const,
-              key: envKey,
+              key: selectedGithubEntry.definition.key,
               version: "latest" as const,
               required: true,
             }
@@ -514,10 +534,21 @@ function Setup({
       // Untested entered keys must pass a probe before they can be stored.
       if (Object.keys(credentials).length && !(await runTest())) return;
       for (const [key, value] of Object.entries(credentials)) {
-        const store = connectionAdapter || adapterType === "github_copilot_web"
-          ? storeProviderApiKey
-          : storeOrganizationApiKey;
-        const secret = await store(companyId, key, value);
+        const secret =
+          connectionAdapter || adapterType === "github_copilot_web"
+            ? await storeProviderApiKey(
+                companyId,
+                key,
+                value,
+                adapterType === "github_copilot_web"
+                  ? {
+                      name: `${key} · ${name.trim()}`,
+                      description: `Added while setting up GitHub Copilot Cloud agent ${name.trim()}.`,
+                      usageGuidance: `Repository: ${repository.trim()}. Required permission: Repository permissions → Agent tasks (read and write).`,
+                    }
+                  : undefined,
+              )
+            : await storeOrganizationApiKey(companyId, key, value);
         staged.push(secret);
         if (adapterType === "hermes_gateway" && key === "API_SERVER_KEY")
           config.apiKey = secret.binding;
@@ -988,17 +1019,46 @@ function Setup({
                               </Field>
                             )}
                             {adapterType === "github_copilot_web" && (
-                              <div className="rounded-md border border-border bg-muted/30 px-3 py-2 sm:col-span-2">
+                              <div className="space-y-2 rounded-md border border-border bg-muted/30 px-3 py-2 sm:col-span-2">
                                 <p className="text-sm font-medium">
-                                  {savedKey
-                                    ? `Using your saved secret: ${savedKey.definition.name}`
+                                  {selectedGithubEntry
+                                    ? `Using your saved secret: ${selectedGithubEntry.definition.name}`
                                     : "No personal GITHUB_TOKEN is saved"}
                                 </p>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  {savedKey
-                                    ? "Leave the token field blank to keep using it, or paste a new token to replace your value."
+                                {githubSavedCredentials.length > 0 && (
+                                  <select
+                                    aria-label="Saved GITHUB_TOKEN"
+                                    className={controlClass}
+                                    value={effectiveSavedCredentialId}
+                                    onChange={(event) => {
+                                      setSelectedSavedCredentialId(event.target.value);
+                                      setApiKey("");
+                                      resetTest();
+                                    }}
+                                  >
+                                    {githubSavedCredentials.map((credential) => (
+                                      <option key={credential.id} value={credential.id}>
+                                        {credential.label}
+                                      </option>
+                                    ))}
+                                    <option value="">Enter a new token</option>
+                                  </select>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  {selectedGithubEntry
+                                    ? "Leave the token field blank to reuse it, or choose Enter a new token."
                                     : "Paste a user-to-server token below. Paperclip saves it to My secrets after the environment test passes."}
                                 </p>
+                                {selectedGithubEntry?.definition.description && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {selectedGithubEntry.definition.description}
+                                  </p>
+                                )}
+                                {selectedGithubEntry?.definition.usageGuidance && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {selectedGithubEntry.definition.usageGuidance}
+                                  </p>
+                                )}
                               </div>
                             )}
                             <div
@@ -1017,6 +1077,8 @@ function Setup({
                                     value={apiKey}
                                     onChange={(event) => {
                                       setApiKey(event.target.value);
+                                      if (adapterType === "github_copilot_web")
+                                        setSelectedSavedCredentialId("");
                                       setProviderBinding(null);
                                       resetTest();
                                     }}
