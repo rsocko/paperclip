@@ -6,6 +6,11 @@ import {
   getAdapterSessionManagement,
   PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES,
 } from "@paperclipai/adapter-utils";
+import {
+  buildRuntimeMountedSkillSnapshot,
+  readPaperclipRuntimeSkillEntries,
+  resolveLegacyPaperclipDesiredSkillNames,
+} from "@paperclipai/adapter-utils/server-utils";
 import type { AdapterLoginCapability } from "@paperclipai/adapter-utils";
 import { runAdapterExecutionTargetShellCommand } from "@paperclipai/adapter-utils/execution-target";
 import {
@@ -934,12 +939,15 @@ function getDisabledAdapterTypesFromStore(): string[] {
 }
 
 /**
- * Merge an external adapter module with host-provided session management.
+ * Merge an external adapter module with host-provided capabilities.
  *
  * Module-provided `sessionManagement` takes precedence. When absent, fall
  * back to the hardcoded registry keyed by adapter type (so externals that
  * override a built-in — same `type` — inherit the builtin's policy). If
  * neither is available, `sessionManagement` remains `undefined`.
+ *
+ * ACP adapters that declare ephemeral skill delivery inherit the standard
+ * Paperclip list/sync projection unless they provide a specialized one.
  *
  * Used by both the init-time IIFE below (external-adapter load pass on
  * server start) and the hot-install path in `routes/adapters.ts`
@@ -949,8 +957,40 @@ function getDisabledAdapterTypesFromStore(): string[] {
 export function resolveExternalAdapterRegistration(
   externalAdapter: ServerAdapterModule,
 ): ServerAdapterModule {
+  const supportsEphemeralSkills =
+    externalAdapter.acp?.skillsMode === "ephemeral";
+  const buildEphemeralSkillSnapshot = async (
+    ctx: Parameters<NonNullable<ServerAdapterModule["listSkills"]>>[0],
+  ) => {
+    const availableEntries = await readPaperclipRuntimeSkillEntries(
+      ctx.config,
+      process.cwd(),
+    );
+    return buildRuntimeMountedSkillSnapshot({
+      adapterType: externalAdapter.type,
+      availableEntries,
+      desiredSkills: resolveLegacyPaperclipDesiredSkillNames(
+        ctx.config,
+        availableEntries,
+      ),
+      configuredDetail:
+        "Will be supplied from an isolated Paperclip-managed skill bundle on the next run.",
+    });
+  };
+
   return {
     ...externalAdapter,
+    listSkills:
+      externalAdapter.listSkills ??
+      (supportsEphemeralSkills ? buildEphemeralSkillSnapshot : undefined),
+    syncSkills:
+      externalAdapter.syncSkills ??
+      (supportsEphemeralSkills
+        ? async (ctx) =>
+            externalAdapter.listSkills
+              ? externalAdapter.listSkills(ctx)
+              : buildEphemeralSkillSnapshot(ctx)
+        : undefined),
     sessionManagement:
       externalAdapter.sessionManagement
         ?? getAdapterSessionManagement(externalAdapter.type)

@@ -4,6 +4,7 @@ import {
   isReadOnlyUnmanagedSkillEntry,
   sameSkillSelection,
   shouldScheduleSkillAutosave,
+  unsupportedAgentSkillsMessage,
 } from "./agent-skills-state";
 
 describe("sameSkillSelection", () => {
@@ -106,6 +107,14 @@ describe("applyAgentSkillSnapshot", () => {
       lastSaved: ["paperclip"],
       hasHydratedSnapshot: true,
       shouldSkipAutosave: false,
+    });
+  });
+
+  describe("unsupportedAgentSkillsMessage", () => {
+    it("explains the GitHub Copilot Cloud limitation and available repository controls", () => {
+      expect(unsupportedAgentSkillsMessage("github_copilot_web", {})).toBe(
+        "GitHub Copilot Cloud does not accept Paperclip skill bundles through the Agent Tasks API. Repository instructions and custom agents still apply.",
+      );
     });
   });
 

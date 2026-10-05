@@ -73,3 +73,23 @@ export function isReadOnlyUnmanagedSkillEntry(
   if (entry.origin === "user_installed" || entry.origin === "external_unknown") return true;
   return entry.managed === false && entry.state === "external";
 }
+
+export function unsupportedAgentSkillsMessage(
+  adapterType: string,
+  adapterConfig: Record<string, unknown>,
+): string {
+  if (
+    adapterType === "acpx_local" &&
+    typeof adapterConfig.agent === "string" &&
+    adapterConfig.agent === "custom"
+  ) {
+    return "Paperclip cannot manage skills for custom ACP commands yet.";
+  }
+  if (adapterType === "openclaw_gateway") {
+    return "Paperclip cannot manage OpenClaw skills here. Visit your OpenClaw instance to manage this agent's skills.";
+  }
+  if (adapterType === "github_copilot_web") {
+    return "GitHub Copilot Cloud does not accept Paperclip skill bundles through the Agent Tasks API. Repository instructions and custom agents still apply.";
+  }
+  return "Paperclip cannot manage skills for this adapter yet. Manage them in the adapter directly.";
+}
