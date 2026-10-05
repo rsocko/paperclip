@@ -442,6 +442,90 @@ describe("server adapter registry", () => {
 });
 
 describe("resolveExternalAdapterRegistration", () => {
+  it("synthesizes list and sync support for ephemeral ACP skills", async () => {
+    const adapter: ServerAdapterModule = {
+      type: "external_ephemeral_skills_test",
+      execute: async () => ({ exitCode: 0, signal: null, timedOut: false }),
+      testEnvironment: async () => ({
+        adapterType: "external_ephemeral_skills_test",
+        status: "pass",
+        checks: [],
+        testedAt: new Date(0).toISOString(),
+      }),
+      acp: {
+        agentId: "external",
+        skillsMode: "ephemeral",
+        prerequisites: {},
+      },
+    };
+    const config = {
+      paperclipSkillSync: {
+        desiredSkills: ["company/test/reviewer"],
+      },
+      paperclipRuntimeSkills: [
+        {
+          key: "company/test/reviewer",
+          runtimeName: "reviewer",
+          source: "/tmp/reviewer",
+          sourceStatus: "available" as const,
+        },
+      ],
+    };
+
+    const resolved = resolveExternalAdapterRegistration(adapter);
+    const context = {
+      agentId: "agent-1",
+      companyId: "company-1",
+      adapterType: adapter.type,
+      config,
+    };
+
+    expect(resolved.listSkills).toBeDefined();
+    expect(resolved.syncSkills).toBeDefined();
+    await expect(resolved.listSkills!(context)).resolves.toMatchObject({
+      adapterType: adapter.type,
+      supported: true,
+      mode: "ephemeral",
+      desiredSkills: ["company/test/reviewer"],
+      entries: [
+        expect.objectContaining({
+          key: "company/test/reviewer",
+          desired: true,
+          state: "configured",
+        }),
+      ],
+    });
+    await expect(
+      resolved.syncSkills!(context, ["company/test/reviewer"]),
+    ).resolves.toMatchObject({
+      supported: true,
+      mode: "ephemeral",
+    });
+  });
+
+  it("does not synthesize skill support for unsupported ACP adapters", () => {
+    const adapter: ServerAdapterModule = {
+      type: "external_unsupported_skills_test",
+      execute: async () => ({ exitCode: 0, signal: null, timedOut: false }),
+      testEnvironment: async () => ({
+        adapterType: "external_unsupported_skills_test",
+        status: "pass",
+        checks: [],
+        testedAt: new Date(0).toISOString(),
+      }),
+      acp: {
+        agentId: "external",
+        skillsMode: "unsupported",
+        prerequisites: {},
+      },
+    };
+
+    const resolved = resolveExternalAdapterRegistration(adapter);
+
+    expect(resolved.listSkills).toBeUndefined();
+    expect(resolved.syncSkills).toBeUndefined();
+  });
+
   it("preserves module-provided sessionManagement", () => {
     const sessionManagement = {
       supportsSessionResume: true,

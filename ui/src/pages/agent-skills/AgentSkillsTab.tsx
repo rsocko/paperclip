@@ -21,6 +21,7 @@ import {
   isReadOnlyUnmanagedSkillEntry,
   sameSkillSelection,
   shouldScheduleSkillAutosave,
+  unsupportedAgentSkillsMessage,
 } from "../../lib/agent-skills-state";
 import { AgentSkillRow, type AgentSkillRowData } from "./AgentSkillRow";
 import { filterAgentSkills } from "./agent-skill-filter";
@@ -306,18 +307,11 @@ export function AgentSkillsTab({ agent, companyId }: { agent: Agent; companyId?:
 
   const unsupportedMessage = useMemo(() => {
     if (!unsupported) return null;
-    if (
-      agent.adapterType === "acpx_local" &&
-      typeof agent.adapterConfig.agent === "string" &&
-      agent.adapterConfig.agent === "custom"
-    ) {
-      return "Paperclip cannot manage skills for custom ACP commands yet.";
-    }
-    if (agent.adapterType === "openclaw_gateway") {
-      return "Paperclip cannot manage OpenClaw skills here. Visit your OpenClaw instance to manage this agent's skills.";
-    }
-    return "Paperclip cannot manage skills for this adapter yet. Manage them in the adapter directly.";
-  }, [agent.adapterConfig.agent, agent.adapterType, unsupported]);
+    return unsupportedAgentSkillsMessage(
+      agent.adapterType,
+      agent.adapterConfig,
+    );
+  }, [agent.adapterConfig, agent.adapterType, unsupported]);
 
   const hasUnsavedChanges = !sameSkillSelection(skillDraft, lastSavedSkills);
 
