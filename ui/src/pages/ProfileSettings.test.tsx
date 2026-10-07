@@ -44,6 +44,12 @@ vi.mock("../context/CompanyContext", () => ({
   }),
 }));
 
+vi.mock("../context/SidebarContext", () => ({
+  useSidebar: () => ({
+    isMobile: false,
+  }),
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 

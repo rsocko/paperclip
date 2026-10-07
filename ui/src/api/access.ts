@@ -89,6 +89,25 @@ type CliAuthChallengeStatus = {
   currentUserId: string | null;
 };
 
+export type BoardApiKey = {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  expiresAt: string | null;
+};
+
+export type CreatedBoardApiKey = BoardApiKey & {
+  token: string;
+};
+
+export type CreateBoardApiKeyInput = {
+  name: string;
+  expiresAt?: string | null;
+  requestedCompanyId?: string | null;
+};
+
 type CompanyInviteCreated = {
   id: string;
   token: string;
@@ -397,6 +416,15 @@ export const accessApi = {
 
   cancelCliAuthChallenge: (id: string, token: string) =>
     api.post<{ cancelled: boolean; status: string }>(`/cli-auth/challenges/${id}/cancel`, { token }),
+
+  listBoardApiKeys: (includeInactive: boolean = false) =>
+    api.get<BoardApiKey[]>(`/board-api-keys${includeInactive ? "?includeInactive=true" : ""}`),
+
+  createBoardApiKey: (input: CreateBoardApiKeyInput) =>
+    api.post<CreatedBoardApiKey>("/board-api-keys", input),
+
+  revokeBoardApiKey: (keyId: string) =>
+    api.delete<{ ok: true; keyId: string }>(`/board-api-keys/${keyId}`),
 
   searchAdminUsers: (query: string) =>
     api.get<AdminUserDirectoryEntry[]>(`/admin/users?query=${encodeURIComponent(query)}`),
