@@ -13,6 +13,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { PageTabBar } from "@/components/PageTabBar";
+import { ProfileApiKeys, PROFILE_SETTINGS_TABS } from "./ProfileApiKeys";
 
 function deriveInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -26,6 +29,7 @@ export function ProfileSettings() {
   const queryClient = useQueryClient();
   const avatarInputId = useId();
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const [activeTab, setActiveTab] = useState("general");
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
@@ -147,7 +151,7 @@ export function ProfileSettings() {
           <h1 className="text-lg font-semibold">Profile</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Control how your account appears in the sidebar and other board surfaces.
+          Manage your personal account details and API access.
         </p>
       </div>
 
@@ -157,121 +161,129 @@ export function ProfileSettings() {
         </div>
       ) : null}
 
-      <section className="space-y-8">
-        <Card className="block relative overflow-hidden rounded-(--rad-28) border-border/70">
-          <div className="absolute inset-x-0 top-0 h-32 bg-(image:--gradient-extract-26)" />
-          <div className="absolute inset-0 bg-(image:--gradient-extract-7)" />
-          <div className="relative p-6 pt-10">
-            <div className="flex flex-wrap items-end gap-5 rounded-(--rad-24) border border-border/70 bg-background/92 p-5 shadow-(--shadow-extract-18) backdrop-blur-sm">
-              <div className="space-y-3">
-                <label
-                  htmlFor={avatarInputId}
-                  className="group relative block cursor-pointer rounded-full focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
-                >
-                  <input
-                    ref={avatarInputRef}
-                    id={avatarInputId}
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    disabled={!selectedCompanyId || isSavingProfile}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (!file) return;
-                      uploadAvatarMutation.mutate(file);
-                      event.target.value = "";
-                    }}
-                  />
-                  <span className="absolute inset-0 z-10 rounded-full bg-black/0 transition-colors group-hover:bg-black/14 group-focus-within:bg-black/14" />
-                  <span className="absolute bottom-1 right-1 z-20 flex size-9 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow-sm">
-                    {uploadAvatarMutation.isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Camera className="size-4" />}
-                  </span>
-                  <Avatar size="lg" className="data-[size=lg]:size-24 ring-4 ring-background shadow-xl">
-                    {currentImage ? <AvatarImage src={currentImage} alt={currentName} /> : null}
-                    <AvatarFallback>{initials}</AvatarFallback>
-                  </Avatar>
-                </label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => avatarInputRef.current?.click()}
-                    disabled={!selectedCompanyId || isSavingProfile}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <PageTabBar items={PROFILE_SETTINGS_TABS} value={activeTab} onValueChange={setActiveTab} align="start" />
+
+        <TabsContent value="general" className="space-y-8">
+          <Card className="block relative overflow-hidden rounded-(--rad-28) border-border/70">
+            <div className="absolute inset-x-0 top-0 h-32 bg-(image:--gradient-extract-26)" />
+            <div className="absolute inset-0 bg-(image:--gradient-extract-7)" />
+            <div className="relative p-6 pt-10">
+              <div className="flex flex-wrap items-end gap-5 rounded-(--rad-24) border border-border/70 bg-background/92 p-5 shadow-(--shadow-extract-18) backdrop-blur-sm">
+                <div className="space-y-3">
+                  <label
+                    htmlFor={avatarInputId}
+                    className="group relative block cursor-pointer rounded-full focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
                   >
-                    {uploadAvatarMutation.isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Camera className="size-4" />}
-                    {currentImage ? "Change photo" : "Upload photo"}
-                  </Button>
-                  {currentImage ? (
+                    <input
+                      ref={avatarInputRef}
+                      id={avatarInputId}
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      disabled={!selectedCompanyId || isSavingProfile}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        uploadAvatarMutation.mutate(file);
+                        event.target.value = "";
+                      }}
+                    />
+                    <span className="absolute inset-0 z-10 rounded-full bg-black/0 transition-colors group-hover:bg-black/14 group-focus-within:bg-black/14" />
+                    <span className="absolute bottom-1 right-1 z-20 flex size-9 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow-sm">
+                      {uploadAvatarMutation.isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Camera className="size-4" />}
+                    </span>
+                    <Avatar size="lg" className="data-[size=lg]:size-24 ring-4 ring-background shadow-xl">
+                      {currentImage ? <AvatarImage src={currentImage} alt={currentName} /> : null}
+                      <AvatarFallback>{initials}</AvatarFallback>
+                    </Avatar>
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
-                      variant="outline"
-                      onClick={() => removeAvatarMutation.mutate()}
-                      disabled={isSavingProfile}
+                      variant="secondary"
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={!selectedCompanyId || isSavingProfile}
                     >
-                      {removeAvatarMutation.isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                      Remove
+                      {uploadAvatarMutation.isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Camera className="size-4" />}
+                      {currentImage ? "Change photo" : "Upload photo"}
                     </Button>
-                  ) : null}
+                    {currentImage ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => removeAvatarMutation.mutate()}
+                        disabled={isSavingProfile}
+                      >
+                        {removeAvatarMutation.isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                        Remove
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
 
-              <div className="min-w-0 flex-1 space-y-2 pb-1">
-                <div>
-                  <h2 className="truncate text-2xl font-semibold text-foreground">{currentName}</h2>
-                  <p className="truncate text-sm text-muted-foreground">{sessionQuery.data.user.email ?? "No email"}</p>
+                <div className="min-w-0 flex-1 space-y-2 pb-1">
+                  <div>
+                    <h2 className="truncate text-2xl font-semibold text-foreground">{currentName}</h2>
+                    <p className="truncate text-sm text-muted-foreground">{sessionQuery.data.user.email ?? "No email"}</p>
+                  </div>
+                  <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                    Click the avatar to upload a new image. {uploadHint}
+                  </p>
                 </div>
-                <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Click the avatar to upload a new image. {uploadHint}
-                </p>
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        <form
-          className="grid gap-6 md:grid-cols-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            updateMutation.mutate({ name: resolveProfileName(), image: image.trim() || null });
-          }}
-        >
-          <div className="space-y-2">
-            <Label htmlFor="profile-name">Display name</Label>
-            <Input
-              id="profile-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              maxLength={120}
-              placeholder="Board"
-            />
-            <p className="text-xs text-muted-foreground">
-              Shown in the sidebar account footer and comment author surfaces.
-            </p>
-          </div>
+          <form
+            className="grid gap-6 md:grid-cols-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              updateMutation.mutate({ name: resolveProfileName(), image: image.trim() || null });
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="profile-name">Display name</Label>
+              <Input
+                id="profile-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                maxLength={120}
+                placeholder="Board"
+              />
+              <p className="text-xs text-muted-foreground">
+                Shown in the sidebar account footer and comment author surfaces.
+              </p>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="profile-email">Email</Label>
-            <Input
-              id="profile-email"
-              value={sessionQuery.data.user.email ?? ""}
-              readOnly
-              disabled
-            />
-            <p className="text-xs text-muted-foreground">
-              Email is managed by your auth session and is read-only here.
-            </p>
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-email">Email</Label>
+              <Input
+                id="profile-email"
+                value={sessionQuery.data.user.email ?? ""}
+                readOnly
+                disabled
+              />
+              <p className="text-xs text-muted-foreground">
+                Email is managed by your auth session and is read-only here.
+              </p>
+            </div>
 
-          <div className="md:col-span-2 flex justify-end">
-            <Button type="submit" disabled={isSavingProfile || !name.trim()}>
-              {updateMutation.isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
-              {updateMutation.isPending ? "Saving..." : "Save profile"}
-            </Button>
-          </div>
-        </form>
+            <div className="md:col-span-2 flex justify-end">
+              <Button type="submit" disabled={isSavingProfile || !name.trim()}>
+                {updateMutation.isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
+                {updateMutation.isPending ? "Saving..." : "Save profile"}
+              </Button>
+            </div>
+          </form>
 
-        <InboxAgentPolicyControl companyId={selectedCompanyId} />
-      </section>
+          <InboxAgentPolicyControl companyId={selectedCompanyId} />
+        </TabsContent>
+
+        <TabsContent value="api-keys">
+          <ProfileApiKeys companyId={selectedCompanyId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
