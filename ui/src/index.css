@@ -515,6 +515,14 @@
   * {
     @apply border-border outline-ring/50;
   }
+  select option,
+  select optgroup {
+    color: var(--popover-foreground);
+    background-color: var(--popover);
+  }
+  select option:disabled {
+    color: var(--muted-foreground);
+  }
   html {
     height: 100%;
     -webkit-tap-highlight-color: color-mix(in oklab, var(--foreground) 20%, transparent);
