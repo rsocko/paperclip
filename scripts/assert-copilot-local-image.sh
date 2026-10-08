@@ -27,11 +27,65 @@ const adapter = module.createServerAdapter();
 if (adapter.type !== "copilot_local" || adapter.acp?.agentId !== "copilot") {
   throw new Error("Adapter server surface is invalid");
 }
+const contextTier = adapter.getConfigSchema?.().fields.find((field) => field.key === "contextTier");
+if (
+  contextTier?.type !== "select" ||
+  !contextTier.options?.some((option) => option.value === "default") ||
+  !contextTier.options?.some((option) => option.value === "long_context")
+) {
+  throw new Error("Adapter schema does not expose both Copilot context window tiers");
+}
 const command = module.buildCopilotAcpCommand({});
 for (const flag of ["--acp", "--stdio", "--no-auto-update", "--no-remote", "--no-remote-export"]) {
   if (!command.includes(flag)) throw new Error(`ACP command is missing ${flag}`);
 }
+const configuredCommand = module.buildCopilotAcpCommand({
+  model: "gpt-6.1-sol",
+  reasoningEffort: "high",
+  contextTier: "long_context",
+});
+for (const value of ["--model", "gpt-6.1-sol", "--effort", "high", "--context", "long_context"]) {
+  if (!configuredCommand.includes(value)) {
+    throw new Error(`Configured ACP command is missing ${value}`);
+  }
+}
 EOF
+
+node -e '
+const declared = JSON.parse(process.env.PAPERCLIP_ADAPTER_MODELS);
+const models = declared.copilot_local;
+for (const id of [
+  "auto",
+  "claude-haiku-5.5",
+  "claude-haiku-4.5",
+  "claude-opus-5.5",
+  "claude-opus-5",
+  "claude-opus-4.8",
+  "claude-sonnet-5.5",
+  "claude-sonnet-5",
+  "gpt-6.1-sol",
+  "gpt-6-astra",
+  "gpt-6-luna",
+  "gpt-6-sol",
+  "gpt-5.6-luna",
+  "gpt-5.6-sol",
+  "gpt-5.6-sol-fast",
+  "gpt-5.6-terra",
+  "gpt-5.5",
+  "gpt-5.4",
+  "gpt-5.4-mini",
+  "gpt-5.3-codex",
+  "gpt-5-mini",
+  "mai-code-1.1-flash",
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "grok-4.7",
+  "grok-4.6",
+  "grok-4.5",
+]) {
+  if (!models.some((model) => model.id === id)) throw new Error(`Missing declared Copilot model: ${id}`);
+}
+'
 
 for command in git gh ssh; do
   command -v "$command" >/dev/null
