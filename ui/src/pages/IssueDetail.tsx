@@ -2600,6 +2600,7 @@ function IssueDetailActivityTab({
     let cost = 0;
     let runtimeMs = 0;
     let runCount = 0;
+    let unavailableUsageCount = 0;
     let hasCost = false;
     let hasTokens = false;
     const nowMs = Date.now();
@@ -2616,6 +2617,7 @@ function IssueDetailActivityTab({
         "cache_read_input_tokens",
       );
       const runCost = visibleRunCostUsd(usage, result);
+      if (usage?.usageStatus === "unavailable") unavailableUsageCount += 1;
       if (runCost > 0) hasCost = true;
       if (runInput + runOutput + runCached > 0) hasTokens = true;
       input += runInput;
@@ -2644,9 +2646,10 @@ function IssueDetailActivityTab({
       output,
       cached,
       cost,
-      totalTokens: input + output,
+      totalTokens: input + cached + output,
       hasCost,
       hasTokens,
+      unavailableUsageCount,
       runtimeMs,
       runCount,
       hasRuntime: runtimeMs > 0,
@@ -2660,6 +2663,7 @@ function IssueDetailActivityTab({
     (issueTreeCostSummary.costCents > 0 ||
       issueTreeCostTokens > 0 ||
       issueTreeCostSummary.cachedInputTokens > 0 ||
+      issueTreeCostSummary.usageUnavailableEventCount > 0 ||
       issueTreeCostSummary.runtimeMs > 0 ||
       issueTreeCostSummary.issueCount > 1);
   const shouldShowCostSummary =
@@ -2678,6 +2682,7 @@ function IssueDetailActivityTab({
           </div>
           {!issueCostSummary.hasCost &&
           !issueCostSummary.hasTokens &&
+          issueCostSummary.unavailableUsageCount === 0 &&
           !hasIssueTreeCost ? (
             <div className="text-xs text-muted-foreground">
               No cost data yet.
@@ -2699,6 +2704,12 @@ function IssueDetailActivityTab({
                       : ` (in ${formatTokens(issueCostSummary.input)}, out ${formatTokens(issueCostSummary.output)})`}
                   </span>
                 ) : null}
+                {issueCostSummary.unavailableUsageCount > 0 ? (
+                  <span>
+                    Token usage unavailable for {issueCostSummary.unavailableUsageCount} run
+                    {issueCostSummary.unavailableUsageCount === 1 ? "" : "s"}
+                  </span>
+                ) : null}
                 {issueCostSummary.hasRuntime ? (
                   <span>
                     Runtime {formatDurationMs(issueCostSummary.runtimeMs)}
@@ -2707,6 +2718,7 @@ function IssueDetailActivityTab({
                 ) : null}
                 {!issueCostSummary.hasCost &&
                 !issueCostSummary.hasTokens &&
+                issueCostSummary.unavailableUsageCount === 0 &&
                 !issueCostSummary.hasRuntime ? (
                   <span>No direct cost data.</span>
                 ) : null}
@@ -2725,12 +2737,20 @@ function IssueDetailActivityTab({
                       },
                     )}
                   </span>
-                  <span>
-                    Tokens {formatTokens(issueTreeCostTokens)}
-                    {issueTreeCostSummary.cachedInputTokens > 0
-                      ? ` (in ${formatTokens(issueTreeCostSummary.inputTokens)}, out ${formatTokens(issueTreeCostSummary.outputTokens)}, cached ${formatTokens(issueTreeCostSummary.cachedInputTokens)})`
-                      : ` (in ${formatTokens(issueTreeCostSummary.inputTokens)}, out ${formatTokens(issueTreeCostSummary.outputTokens)})`}
-                  </span>
+                  {issueTreeCostTokens + issueTreeCostSummary.cachedInputTokens > 0 ? (
+                    <span>
+                      Tokens {formatTokens(issueTreeCostTokens + issueTreeCostSummary.cachedInputTokens)}
+                      {issueTreeCostSummary.cachedInputTokens > 0
+                        ? ` (in ${formatTokens(issueTreeCostSummary.inputTokens)}, out ${formatTokens(issueTreeCostSummary.outputTokens)}, cached ${formatTokens(issueTreeCostSummary.cachedInputTokens)})`
+                        : ` (in ${formatTokens(issueTreeCostSummary.inputTokens)}, out ${formatTokens(issueTreeCostSummary.outputTokens)})`}
+                    </span>
+                  ) : null}
+                  {issueTreeCostSummary.usageUnavailableEventCount > 0 ? (
+                    <span>
+                      Token usage unavailable for {issueTreeCostSummary.usageUnavailableEventCount} run
+                      {issueTreeCostSummary.usageUnavailableEventCount === 1 ? "" : "s"}
+                    </span>
+                  ) : null}
                   {issueTreeCostSummary.runCount > 0 ? (
                     <span>
                       Runtime {formatDurationMs(issueTreeCostSummary.runtimeMs)}

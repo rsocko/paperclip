@@ -59,10 +59,13 @@ function currentWeekRange(): { from: string; to: string } {
 function ProviderTabLabel({ provider, rows }: { provider: string; rows: CostByProviderModel[] }) {
   const totalTokens = rows.reduce((sum, row) => sum + row.inputTokens + row.cachedInputTokens + row.outputTokens, 0);
   const totalCost = rows.reduce((sum, row) => sum + row.costCents, 0);
+  const unavailableCount = rows.reduce((sum, row) => sum + row.usageUnavailableEventCount, 0);
   return (
     <span className="flex items-center gap-1.5">
       <span>{providerDisplayName(provider)}</span>
-      <span className="font-mono text-xs text-muted-foreground">{formatTokens(totalTokens)}</span>
+      <span className="font-mono text-xs text-muted-foreground">
+        {unavailableCount > 0 && totalTokens === 0 ? "Usage unavailable" : formatTokens(totalTokens)}
+      </span>
       <span className="text-xs text-muted-foreground">{formatCents(totalCost)}</span>
     </span>
   );
@@ -71,10 +74,13 @@ function ProviderTabLabel({ provider, rows }: { provider: string; rows: CostByPr
 function BillerTabLabel({ biller, rows }: { biller: string; rows: CostByBiller[] }) {
   const totalTokens = rows.reduce((sum, row) => sum + row.inputTokens + row.cachedInputTokens + row.outputTokens, 0);
   const totalCost = rows.reduce((sum, row) => sum + row.costCents, 0);
+  const unavailableCount = rows.reduce((sum, row) => sum + row.usageUnavailableEventCount, 0);
   return (
     <span className="flex items-center gap-1.5">
       <span>{providerDisplayName(biller)}</span>
-      <span className="font-mono text-xs text-muted-foreground">{formatTokens(totalTokens)}</span>
+      <span className="font-mono text-xs text-muted-foreground">
+        {unavailableCount > 0 && totalTokens === 0 ? "Usage unavailable" : formatTokens(totalTokens)}
+      </span>
       <span className="text-xs text-muted-foreground">{formatCents(totalCost)}</span>
     </span>
   );
@@ -233,12 +239,14 @@ export function Costs({
     mutationFn: (input: {
       scopeType: BudgetPolicySummary["scopeType"];
       scopeId: string;
+      metric: BudgetPolicySummary["metric"];
       amount: number;
       windowKind: BudgetPolicySummary["windowKind"];
     }) =>
       budgetsApi.upsertPolicy(companyId, {
         scopeType: input.scopeType,
         scopeId: input.scopeId,
+        metric: input.metric,
         amount: input.amount,
         windowKind: input.windowKind,
       }),
@@ -540,6 +548,8 @@ export function Costs({
       (sum, row) => sum + row.inputTokens + row.cachedInputTokens + row.outputTokens,
       0,
     );
+  const unavailableUsageEventCount =
+    spendData?.summary.usageUnavailableEventCount ?? 0;
 
   const topFinanceEvents = (financeData?.events ?? []) as FinanceEvent[];
   const budgetPolicies = budgetData?.policies ?? [];
@@ -610,7 +620,11 @@ export function Costs({
             <MetricTile
               label="Inference spend"
               value={formatCents(spendData?.summary.spendCents ?? 0)}
-              subtitle={`${formatTokens(inferenceTokenTotal)} tokens across request-scoped events`}
+              subtitle={
+                unavailableUsageEventCount > 0
+                  ? `${formatTokens(inferenceTokenTotal)} reported tokens · usage unavailable for ${unavailableUsageEventCount} event${unavailableUsageEventCount === 1 ? "" : "s"}`
+                  : `${formatTokens(inferenceTokenTotal)} tokens across request-scoped events`
+              }
               icon={DollarSign}
             />
             <MetricTile
@@ -707,8 +721,15 @@ export function Costs({
                       <div className="border border-border px-4 py-3 text-right">
                         <div className="text-(length:--text-micro) uppercase tracking-(--tracking-eyebrow) text-muted-foreground">usage</div>
                         <div className="mt-1 text-lg font-medium tabular-nums">
-                          {formatTokens(inferenceTokenTotal)}
+                          {unavailableUsageEventCount > 0 && inferenceTokenTotal === 0
+                            ? "Unavailable"
+                            : formatTokens(inferenceTokenTotal)}
                         </div>
+                        {unavailableUsageEventCount > 0 ? (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Provider omitted usage for {unavailableUsageEventCount} event{unavailableUsageEventCount === 1 ? "" : "s"}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     {spendData?.summary.budgetCents && spendData.summary.budgetCents > 0 ? (
@@ -777,8 +798,13 @@ export function Costs({
                               <div className="text-right text-sm tabular-nums">
                                 <div className="font-medium">{formatCents(row.costCents)}</div>
                                 <div className="text-xs text-muted-foreground">
-                                  in {formatTokens(row.inputTokens + row.cachedInputTokens)} · out {formatTokens(row.outputTokens)}
+                                  in {formatTokens(row.inputTokens)} · cached {formatTokens(row.cachedInputTokens)} · out {formatTokens(row.outputTokens)}
                                 </div>
+                                {row.usageUnavailableEventCount > 0 ? (
+                                  <div className="text-xs text-muted-foreground">
+                                    Usage unavailable for {row.usageUnavailableEventCount} event{row.usageUnavailableEventCount === 1 ? "" : "s"}
+                                  </div>
+                                ) : null}
                                 {(row.apiRunCount > 0 || row.subscriptionRunCount > 0) ? (
                                   <div className="text-xs text-muted-foreground">
                                     {row.apiRunCount > 0 ? `${row.apiRunCount} api` : "0 api"}
@@ -816,7 +842,10 @@ export function Costs({
                                           <span className="ml-1 font-normal text-muted-foreground">({sharePct}%)</span>
                                         </div>
                                         <div className="text-muted-foreground">
-                                          {formatTokens(modelRow.inputTokens + modelRow.cachedInputTokens + modelRow.outputTokens)} tok
+                                          {modelRow.usageUnavailableEventCount > 0 &&
+                                          modelRow.inputTokens + modelRow.cachedInputTokens + modelRow.outputTokens === 0
+                                            ? "Usage unavailable"
+                                            : `${formatTokens(modelRow.inputTokens)} in · ${formatTokens(modelRow.cachedInputTokens)} cached · ${formatTokens(modelRow.outputTokens)} out`}
                                         </div>
                                       </div>
                                     </div>
@@ -956,6 +985,7 @@ export function Costs({
                               policyMutation.mutate({
                                 scopeType: summary.scopeType,
                                 scopeId: summary.scopeId,
+                                metric: summary.metric,
                                 amount,
                                 windowKind: summary.windowKind,
                               })}

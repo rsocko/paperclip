@@ -5266,6 +5266,24 @@ export function resolveLedgerCostStatus(input: {
     : "unpriced";
 }
 
+export function resolveLedgerUsageStatus(
+  usage: UsageSummary | null | undefined,
+): "reported" | "unavailable" {
+  return usage != null ? "reported" : "unavailable";
+}
+
+export function shouldCreateLedgerEvent(input: {
+  billingType: BillingType;
+  costCents: number;
+  usage: UsageSummary | null | undefined;
+}) {
+  return (
+    input.costCents > 0 ||
+    input.usage != null ||
+    input.billingType === "subscription_included"
+  );
+}
+
 export function resolveCacheAdjustedCostUsd(input: {
   costUsd?: number | null;
   cacheAdjustedCostUsd?: number | null;
@@ -19827,8 +19845,6 @@ export function heartbeatService(
       billedCostUsd,
       billingType,
     );
-    const hasTokenUsage =
-      inputTokens > 0 || outputTokens > 0 || cachedInputTokens > 0;
     const costStatus = resolveLedgerCostStatus({
       costUsd: billedCostUsd,
       inputTokens,
@@ -19859,7 +19875,11 @@ export function heartbeatService(
       })
       .where(eq(agentRuntimeState.agentId, agent.id));
 
-    if (additionalCostCents > 0 || hasTokenUsage) {
+    if (shouldCreateLedgerEvent({
+      billingType,
+      costCents: additionalCostCents,
+      usage: result.usage,
+    })) {
       const costs = costService(db, budgetHooks);
       await costs.createEvent(agent.companyId, {
         heartbeatRunId: run.id,
@@ -19871,6 +19891,7 @@ export function heartbeatService(
         biller,
         billingType,
         costStatus,
+        usageStatus: resolveLedgerUsageStatus(result.usage),
         model: result.model ?? "unknown",
         inputTokens,
         cachedInputTokens,
@@ -25186,7 +25207,9 @@ export function heartbeatService(
         const usageJson =
           normalizedUsage ||
           adapterResult.costUsd != null ||
-          cacheAdjustedCostUsd != null
+          cacheAdjustedCostUsd != null ||
+          normalizeLedgerBillingType(adapterResult.billingType) ===
+            "subscription_included"
             ? ({
                 ...(normalizedUsage ?? {}),
                 ...(rawUsage
@@ -25238,6 +25261,7 @@ export function heartbeatService(
                 billingType: normalizeLedgerBillingType(
                   adapterResult.billingType,
                 ),
+                usageStatus: resolveLedgerUsageStatus(adapterResult.usage),
               } as Record<string, unknown>)
             : null;
 

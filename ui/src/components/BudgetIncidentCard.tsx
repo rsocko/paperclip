@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { BudgetIncident } from "@paperclipai/shared";
 import { AlertOctagon, ArrowUpRight, PauseCircle } from "lucide-react";
-import { formatCents } from "../lib/utils";
+import { formatCents, formatTokens } from "../lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,12 @@ function parseDollarInput(value: string) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) return null;
   return Math.round(parsed * 100);
+}
+
+function incidentAmountValue(incident: BudgetIncident, value: number) {
+  return incident.metric === "total_tokens"
+    ? `${formatTokens(value)} tokens`
+    : formatCents(value);
 }
 
 function incidentStateLabel(incident: BudgetIncident) {
@@ -32,14 +38,21 @@ export function BudgetIncidentCard({
   isMutating,
 }: {
   incident: BudgetIncident;
-  onRaiseAndResume: (amountCents: number) => void;
+  onRaiseAndResume: (amount: number) => void;
   onKeepPaused: () => void;
   isMutating?: boolean;
 }) {
   const [draftAmount, setDraftAmount] = useState(
-    centsInputValue(Math.max(incident.amountObserved + 1000, incident.amountLimit)),
+    incident.metric === "total_tokens"
+      ? String(Math.max(incident.amountObserved + 1_000, incident.amountLimit))
+      : centsInputValue(Math.max(incident.amountObserved + 1000, incident.amountLimit)),
   );
-  const parsed = parseDollarInput(draftAmount);
+  const parsed = incident.metric === "total_tokens"
+    ? (() => {
+        const value = Number(draftAmount);
+        return Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
+      })()
+    : parseDollarInput(draftAmount);
   const stateLabel = incidentStateLabel(incident);
 
   return (
@@ -57,7 +70,9 @@ export function BudgetIncidentCard({
             </div>
             <CardTitle className="mt-1 text-base text-red-950 dark:text-red-50">{incident.scopeName}</CardTitle>
             <CardDescription className="mt-1 text-red-900/75 dark:text-red-100/70">
-              Spending reached {formatCents(incident.amountObserved)} against a limit of {formatCents(incident.amountLimit)}.
+              {incident.metric === "total_tokens" ? "Token usage" : "Spending"} reached{" "}
+              {incidentAmountValue(incident, incident.amountObserved)} against a limit of{" "}
+              {incidentAmountValue(incident, incident.amountLimit)}.
             </CardDescription>
           </div>
           <div className="rounded-full border border-red-400/30 bg-red-500/10 p-2 text-red-600 dark:text-red-200">
@@ -70,21 +85,21 @@ export function BudgetIncidentCard({
           <PauseCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             {incident.scopeType === "project"
-              ? "Project execution is paused. New work in this project will not start until you resolve the budget incident."
-              : "This scope is paused. New heartbeats will not start until you resolve the budget incident."}
+              ? `Project execution is paused. New work in this project will not start until you resolve the ${incident.metric === "total_tokens" ? "token guardrail" : "budget"} incident.`
+              : `This scope is paused. New heartbeats will not start until you resolve the ${incident.metric === "total_tokens" ? "token guardrail" : "budget"} incident.`}
           </div>
         </div>
 
         <div className="rounded-xl border border-border/60 bg-background/60 p-3">
           <label className="text-(length:--text-micro) uppercase tracking-(--tracking-caps) text-muted-foreground">
-            New budget (USD)
+            {incident.metric === "total_tokens" ? "New token limit" : "New budget (USD)"}
           </label>
           <div className="mt-2 flex flex-col gap-3 sm:flex-row">
             <Input
               value={draftAmount}
               onChange={(event) => setDraftAmount(event.target.value)}
-              inputMode="decimal"
-              placeholder="0.00"
+              inputMode={incident.metric === "total_tokens" ? "numeric" : "decimal"}
+              placeholder={incident.metric === "total_tokens" ? "0" : "0.00"}
             />
             <Button
               className="gap-2"
@@ -94,12 +109,14 @@ export function BudgetIncidentCard({
               }}
             >
               <ArrowUpRight className="h-4 w-4" />
-              {isMutating ? "Applying..." : "Raise budget & resume"}
+              {isMutating
+                ? "Applying..."
+                : `Raise ${incident.metric === "total_tokens" ? "guardrail" : "budget"} & resume`}
             </Button>
           </div>
           {parsed !== null && parsed <= incident.amountObserved ? (
             <p className="mt-2 text-xs text-red-700 dark:text-red-200/80">
-              The new budget must exceed current observed spend.
+              The new limit must exceed current observed {incident.metric === "total_tokens" ? "token usage" : "spend"}.
             </p>
           ) : null}
         </div>

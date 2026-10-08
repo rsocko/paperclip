@@ -836,6 +836,9 @@ export type BillingType = (typeof BILLING_TYPES)[number];
 export const COST_STATUSES = ["reported", "unpriced"] as const;
 export type CostStatus = (typeof COST_STATUSES)[number];
 
+export const USAGE_STATUSES = ["reported", "unavailable"] as const;
+export type UsageStatus = (typeof USAGE_STATUSES)[number];
+
 export const FINANCE_EVENT_KINDS = [
   "inference_charge",
   "platform_fee",
@@ -875,7 +878,7 @@ export type FinanceUnit = (typeof FINANCE_UNITS)[number];
 export const BUDGET_SCOPE_TYPES = ["company", "agent", "project"] as const;
 export type BudgetScopeType = (typeof BUDGET_SCOPE_TYPES)[number];
 
-export const BUDGET_METRICS = ["billed_cents"] as const;
+export const BUDGET_METRICS = ["billed_cents", "total_tokens"] as const;
 export type BudgetMetric = (typeof BUDGET_METRICS)[number];
 
 export const BUDGET_WINDOW_KINDS = ["calendar_month_utc", "lifetime"] as const;

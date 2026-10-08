@@ -473,6 +473,70 @@ describeEmbeddedPostgres("cost and finance aggregate overflow handling", () => {
     expect(agent?.spentMonthlyCents).toBe(0);
   });
 
+  it("keeps unavailable subscription usage visible in summary, provider, and biller aggregates", async () => {
+    const companyId = randomUUID();
+    const agentId = randomUUID();
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Paperclip",
+      issuePrefix: `U${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+    await db.insert(agents).values({
+      id: agentId,
+      companyId,
+      name: "Copilot Agent",
+      role: "engineer",
+      status: "active",
+      adapterType: "copilot_local",
+      adapterConfig: {},
+      runtimeConfig: {},
+      permissions: {},
+    });
+
+    await costs.createEvent(companyId, {
+      agentId,
+      provider: "github_copilot",
+      biller: "github",
+      billingType: "subscription_included",
+      costStatus: "unpriced",
+      usageStatus: "unavailable",
+      model: "auto",
+      inputTokens: 0,
+      cachedInputTokens: 0,
+      outputTokens: 0,
+      costCents: 0,
+      occurredAt: new Date("2026-07-13T14:22:54.000Z"),
+    });
+
+    const range = {
+      from: new Date("2026-07-01T00:00:00.000Z"),
+      to: new Date("2026-07-31T23:59:59.999Z"),
+    };
+    const summary = await costs.summary(companyId, range);
+    const [provider] = await costs.byProvider(companyId, range);
+    const [biller] = await costs.byBiller(companyId, range);
+
+    expect(summary).toMatchObject({
+      spendCents: 0,
+      usageReportedEventCount: 0,
+      usageUnavailableEventCount: 1,
+    });
+    expect(provider).toMatchObject({
+      provider: "github_copilot",
+      biller: "github",
+      subscriptionRunCount: 0,
+      usageReportedEventCount: 0,
+      usageUnavailableEventCount: 1,
+    });
+    expect(biller).toMatchObject({
+      biller: "github",
+      usageReportedEventCount: 0,
+      usageUnavailableEventCount: 1,
+    });
+  });
+
   it("aggregates cost event sums above int32 without raising Postgres integer overflow", async () => {
     const companyId = randomUUID();
     const agentId = randomUUID();
@@ -544,8 +608,13 @@ describeEmbeddedPostgres("cost and finance aggregate overflow handling", () => {
 
     expect(byAgentRow?.costCents).toBe(4_000_000_000);
     expect(byAgentRow?.inputTokens).toBe(4_000_000_000);
+    expect(byAgentRow?.cachedInputTokens).toBe(10);
+    expect(byAgentRow?.usageReportedEventCount).toBe(2);
+    expect(byAgentRow?.usageUnavailableEventCount).toBe(0);
     expect(byProjectRow?.costCents).toBe(4_000_000_000);
+    expect(byProjectRow?.cachedInputTokens).toBe(10);
     expect(byAgentModelRow?.costCents).toBe(4_000_000_000);
+    expect(byAgentModelRow?.cachedInputTokens).toBe(10);
   });
 
   it("aggregates issue costs across recursive descendants only", async () => {
@@ -695,6 +764,8 @@ describeEmbeddedPostgres("cost and finance aggregate overflow handling", () => {
       inputTokens: 60,
       cachedInputTokens: 6,
       outputTokens: 12,
+      usageReportedEventCount: 3,
+      usageUnavailableEventCount: 0,
       runCount: 0,
       runtimeMs: 0,
     });

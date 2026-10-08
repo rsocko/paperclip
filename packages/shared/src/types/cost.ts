@@ -1,5 +1,5 @@
 import type { AgentAppearance } from "../agent-appearance.js";
-import type { BillingType, CostStatus } from "../constants.js";
+import type { BillingType, CostStatus, UsageStatus } from "../constants.js";
 
 export interface CostEvent {
   id: string;
@@ -14,6 +14,7 @@ export interface CostEvent {
   biller: string;
   billingType: BillingType;
   costStatus: CostStatus;
+  usageStatus: UsageStatus;
   model: string;
   inputTokens: number;
   cachedInputTokens: number;
@@ -28,6 +29,8 @@ export interface CostSummary {
   spendCents: number;
   budgetCents: number;
   utilizationPercent: number;
+  usageReportedEventCount: number;
+  usageUnavailableEventCount: number;
 }
 
 export interface IssueCostSummary {
@@ -38,6 +41,8 @@ export interface IssueCostSummary {
   inputTokens: number;
   cachedInputTokens: number;
   outputTokens: number;
+  usageReportedEventCount: number;
+  usageUnavailableEventCount: number;
   /** number of distinct heartbeat runs aggregated across the issue tree */
   runCount: number;
   /** sum of wall-clock duration of each run in the tree (ms);
@@ -60,6 +65,8 @@ export interface CostByAgent {
   subscriptionCachedInputTokens: number;
   subscriptionInputTokens: number;
   subscriptionOutputTokens: number;
+  usageReportedEventCount: number;
+  usageUnavailableEventCount: number;
 }
 
 export interface CostByProviderModel {
@@ -76,6 +83,8 @@ export interface CostByProviderModel {
   subscriptionCachedInputTokens: number;
   subscriptionInputTokens: number;
   subscriptionOutputTokens: number;
+  usageReportedEventCount: number;
+  usageUnavailableEventCount: number;
 }
 
 export interface CostByBiller {
@@ -89,6 +98,8 @@ export interface CostByBiller {
   subscriptionCachedInputTokens: number;
   subscriptionInputTokens: number;
   subscriptionOutputTokens: number;
+  usageReportedEventCount: number;
+  usageUnavailableEventCount: number;
   providerCount: number;
   modelCount: number;
 }
@@ -107,6 +118,8 @@ export interface CostByAgentModel {
   inputTokens: number;
   cachedInputTokens: number;
   outputTokens: number;
+  usageReportedEventCount: number;
+  usageUnavailableEventCount: number;
 }
 
 /** spend per provider for a fixed rolling time window */
@@ -121,6 +134,8 @@ export interface CostWindowSpendRow {
   inputTokens: number;
   cachedInputTokens: number;
   outputTokens: number;
+  usageReportedEventCount: number;
+  usageUnavailableEventCount: number;
 }
 
 /** cost attributed to a project via heartbeat run → activity log → issue → project chain */
@@ -131,4 +146,6 @@ export interface CostByProject {
   inputTokens: number;
   cachedInputTokens: number;
   outputTokens: number;
+  usageReportedEventCount: number;
+  usageUnavailableEventCount: number;
 }

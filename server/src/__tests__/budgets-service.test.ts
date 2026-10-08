@@ -452,6 +452,51 @@ describeEmbeddedPostgres("budgetService release gate enforcement", () => {
       status: "open",
     });
 
+    it("evaluates token guardrails independently from zero-dollar subscription spend", async () => {
+      const { companyId, agentId } = await createBudgetFixture();
+      const service = budgetService(db);
+      const [tokenPolicy] = await db
+        .insert(budgetPolicies)
+        .values({
+          companyId,
+          scopeType: "agent",
+          scopeId: agentId,
+          metric: "total_tokens",
+          windowKind: "calendar_month_utc",
+          amount: 120,
+          warnPercent: 80,
+          hardStopEnabled: true,
+          notifyEnabled: true,
+          isActive: true,
+        })
+        .returning();
+      await db.insert(budgetPolicies).values({
+        companyId,
+        scopeType: "agent",
+        scopeId: agentId,
+        metric: "billed_cents",
+        windowKind: "calendar_month_utc",
+        amount: 1,
+        warnPercent: 80,
+        hardStopEnabled: true,
+        notifyEnabled: true,
+        isActive: true,
+      });
+
+      const event = await insertCostEvent({ companyId, agentId, costCents: 0 });
+      await service.evaluateCostEvent(event);
+
+      const incidents = await db.select().from(budgetIncidents);
+      expect(incidents).toHaveLength(1);
+      expect(incidents[0]).toMatchObject({
+        policyId: tokenPolicy!.id,
+        metric: "total_tokens",
+        thresholdType: "hard",
+        amountLimit: 120,
+        amountObserved: 130,
+      });
+    });
+
     const [agentBeforeHardStop] = await db
       .select({ status: agents.status, pauseReason: agents.pauseReason })
       .from(agents);

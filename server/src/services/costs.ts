@@ -19,6 +19,10 @@ function sumAsNumber(column: typeof costEvents.costCents | typeof costEvents.inp
   return sql<number>`coalesce(sum(${column}), 0)::double precision`;
 }
 
+function usageStatusEventCount(status: "reported" | "unavailable") {
+  return sql<number>`count(*) filter (where ${costEvents.usageStatus} = ${status})::int`;
+}
+
 function currentUtcMonthWindow(now = new Date()) {
   const year = now.getUTCFullYear();
   const month = now.getUTCMonth();
@@ -116,9 +120,11 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
       if (range?.from) conditions.push(gte(costEvents.occurredAt, range.from));
       if (range?.to) conditions.push(lte(costEvents.occurredAt, range.to));
 
-      const [{ total }] = await db
+      const [{ total, usageReportedEventCount, usageUnavailableEventCount }] = await db
         .select({
           total: sumAsNumber(costEvents.costCents),
+          usageReportedEventCount: usageStatusEventCount("reported"),
+          usageUnavailableEventCount: usageStatusEventCount("unavailable"),
         })
         .from(costEvents)
         .where(and(...conditions));
@@ -134,6 +140,8 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
         spendCents,
         budgetCents: company.budgetMonthlyCents,
         utilizationPercent: Number(utilization.toFixed(2)),
+        usageReportedEventCount: Number(usageReportedEventCount ?? 0),
+        usageUnavailableEventCount: Number(usageUnavailableEventCount ?? 0),
       };
     },
 
@@ -241,6 +249,8 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
             inputTokens: sumAsNumber(costEvents.inputTokens),
             cachedInputTokens: sumAsNumber(costEvents.cachedInputTokens),
             outputTokens: sumAsNumber(costEvents.outputTokens),
+            usageReportedEventCount: usageStatusEventCount("reported"),
+            usageUnavailableEventCount: usageStatusEventCount("unavailable"),
           })
           .from(issues)
           .leftJoin(
@@ -273,6 +283,8 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
         inputTokens: Number(costRow?.inputTokens ?? 0),
         cachedInputTokens: Number(costRow?.cachedInputTokens ?? 0),
         outputTokens: Number(costRow?.outputTokens ?? 0),
+        usageReportedEventCount: Number(costRow?.usageReportedEventCount ?? 0),
+        usageUnavailableEventCount: Number(costRow?.usageUnavailableEventCount ?? 0),
         runCount: Number(runRow?.runCount ?? 0),
         runtimeMs: Number(runRow?.runtimeMs ?? 0),
       };
@@ -303,6 +315,8 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
             sql<number>`coalesce(sum(case when ${costEvents.billingType} in (${sql.join(SUBSCRIPTION_BILLING_TYPES.map((value) => sql`${value}`), sql`, `)}) then ${costEvents.inputTokens} else 0 end), 0)::double precision`,
           subscriptionOutputTokens:
             sql<number>`coalesce(sum(case when ${costEvents.billingType} in (${sql.join(SUBSCRIPTION_BILLING_TYPES.map((value) => sql`${value}`), sql`, `)}) then ${costEvents.outputTokens} else 0 end), 0)::double precision`,
+          usageReportedEventCount: usageStatusEventCount("reported"),
+          usageUnavailableEventCount: usageStatusEventCount("unavailable"),
         })
         .from(costEvents)
         .leftJoin(agents, eq(costEvents.agentId, agents.id))
@@ -340,6 +354,8 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
             sql<number>`coalesce(sum(case when ${costEvents.billingType} in (${sql.join(SUBSCRIPTION_BILLING_TYPES.map((value) => sql`${value}`), sql`, `)}) then ${costEvents.inputTokens} else 0 end), 0)::double precision`,
           subscriptionOutputTokens:
             sql<number>`coalesce(sum(case when ${costEvents.billingType} in (${sql.join(SUBSCRIPTION_BILLING_TYPES.map((value) => sql`${value}`), sql`, `)}) then ${costEvents.outputTokens} else 0 end), 0)::double precision`,
+          usageReportedEventCount: usageStatusEventCount("reported"),
+          usageUnavailableEventCount: usageStatusEventCount("unavailable"),
         })
         .from(costEvents)
         .where(and(...conditions))
@@ -369,6 +385,8 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
             sql<number>`coalesce(sum(case when ${costEvents.billingType} in (${sql.join(SUBSCRIPTION_BILLING_TYPES.map((value) => sql`${value}`), sql`, `)}) then ${costEvents.inputTokens} else 0 end), 0)::double precision`,
           subscriptionOutputTokens:
             sql<number>`coalesce(sum(case when ${costEvents.billingType} in (${sql.join(SUBSCRIPTION_BILLING_TYPES.map((value) => sql`${value}`), sql`, `)}) then ${costEvents.outputTokens} else 0 end), 0)::double precision`,
+          usageReportedEventCount: usageStatusEventCount("reported"),
+          usageUnavailableEventCount: usageStatusEventCount("unavailable"),
           providerCount: sql<number>`count(distinct ${costEvents.provider})::int`,
           modelCount: sql<number>`count(distinct ${costEvents.model})::int`,
         })
@@ -401,6 +419,8 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
               inputTokens: sumAsNumber(costEvents.inputTokens),
               cachedInputTokens: sumAsNumber(costEvents.cachedInputTokens),
               outputTokens: sumAsNumber(costEvents.outputTokens),
+              usageReportedEventCount: usageStatusEventCount("reported"),
+              usageUnavailableEventCount: usageStatusEventCount("unavailable"),
             })
             .from(costEvents)
             .where(
@@ -421,6 +441,8 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
             inputTokens: row.inputTokens,
             cachedInputTokens: row.cachedInputTokens,
             outputTokens: row.outputTokens,
+            usageReportedEventCount: row.usageReportedEventCount,
+            usageUnavailableEventCount: row.usageUnavailableEventCount,
           }));
         }),
       );
@@ -450,6 +472,8 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
           inputTokens: sumAsNumber(costEvents.inputTokens),
           cachedInputTokens: sumAsNumber(costEvents.cachedInputTokens),
           outputTokens: sumAsNumber(costEvents.outputTokens),
+          usageReportedEventCount: usageStatusEventCount("reported"),
+          usageUnavailableEventCount: usageStatusEventCount("unavailable"),
         })
         .from(costEvents)
         .leftJoin(agents, eq(costEvents.agentId, agents.id))
@@ -511,6 +535,8 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
           inputTokens: sumAsNumber(costEvents.inputTokens),
           cachedInputTokens: sumAsNumber(costEvents.cachedInputTokens),
           outputTokens: sumAsNumber(costEvents.outputTokens),
+          usageReportedEventCount: usageStatusEventCount("reported"),
+          usageUnavailableEventCount: usageStatusEventCount("unavailable"),
         })
         .from(costEvents)
         .leftJoin(runProjectLinks, eq(costEvents.heartbeatRunId, runProjectLinks.runId))

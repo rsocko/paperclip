@@ -20,17 +20,21 @@ export function BillerSpendCard({
   providerRows,
 }: BillerSpendCardProps) {
   const providerBreakdown = useMemo(() => {
-    const map = new Map<string, { provider: string; costCents: number; inputTokens: number; outputTokens: number }>();
+    const map = new Map<string, { provider: string; costCents: number; inputTokens: number; cachedInputTokens: number; outputTokens: number; usageUnavailableEventCount: number }>();
     for (const entry of providerRows) {
       const current = map.get(entry.provider) ?? {
         provider: entry.provider,
         costCents: 0,
         inputTokens: 0,
+        cachedInputTokens: 0,
         outputTokens: 0,
+        usageUnavailableEventCount: 0,
       };
       current.costCents += entry.costCents;
-      current.inputTokens += entry.inputTokens + entry.cachedInputTokens;
+      current.inputTokens += entry.inputTokens;
+      current.cachedInputTokens += entry.cachedInputTokens;
       current.outputTokens += entry.outputTokens;
+      current.usageUnavailableEventCount += entry.usageUnavailableEventCount;
       map.set(entry.provider, current);
     }
     return Array.from(map.values()).sort((a, b) => b.costCents - a.costCents);
@@ -62,7 +66,9 @@ export function BillerSpendCard({
               {providerDisplayName(row.biller)}
             </CardTitle>
             <CardDescription className="text-xs mt-0.5">
-              <span className="font-mono">{formatTokens(row.inputTokens + row.cachedInputTokens)}</span> in
+              <span className="font-mono">{formatTokens(row.inputTokens)}</span> in
+              {" · "}
+              <span className="font-mono">{formatTokens(row.cachedInputTokens)}</span> cached
               {" · "}
               <span className="font-mono">{formatTokens(row.outputTokens)}</span> out
               {" · "}
@@ -70,6 +76,11 @@ export function BillerSpendCard({
               {" · "}
               {row.modelCount} model{row.modelCount === 1 ? "" : "s"}
             </CardDescription>
+            {row.usageUnavailableEventCount > 0 ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Token usage unavailable for {row.usageUnavailableEventCount} event{row.usageUnavailableEventCount === 1 ? "" : "s"} because the provider omitted it.
+              </p>
+            ) : null}
           </div>
           <span className="text-xl font-bold tabular-nums shrink-0">
             {formatCents(row.costCents)}
@@ -130,7 +141,10 @@ export function BillerSpendCard({
                     <div className="text-right tabular-nums">
                       <div className="font-medium">{formatCents(entry.costCents)}</div>
                       <div className="text-muted-foreground">
-                        {formatTokens(entry.inputTokens + entry.outputTokens)} tok
+                        {entry.usageUnavailableEventCount > 0 &&
+                        entry.inputTokens + entry.cachedInputTokens + entry.outputTokens === 0
+                          ? "Usage unavailable"
+                          : `${formatTokens(entry.inputTokens + entry.cachedInputTokens + entry.outputTokens)} tok`}
                       </div>
                     </div>
                   </div>

@@ -71,6 +71,42 @@ The model selector reads the adapter model API. Set
 The selector preserves an `auto` entry from that list and accepts a manual
 model ID. Paperclip does not perform authenticated model enumeration.
 
+## Token accounting
+
+Paperclip treats the token breakdown reported by the Copilot ACP runtime for a
+completed turn as **per-run usage**. Resuming an ACP session does not make those
+token values session totals, so Paperclip records each run's reported input,
+cached-input, and output tokens directly and does not subtract a prior run.
+Cached input remains a separate quantity in the ledger and in provider, biller,
+agent/model, project, issue, and rolling-window aggregates.
+
+The ACP runtime's cost amount has different semantics: it is a
+**session-cumulative counter**. Paperclip snapshots it before the turn and bills
+only the non-negative post-turn delta. If that counter resets, the post-turn
+amount is the new run cost. This split prevents resumed sessions from having
+their tokens delta-adjusted twice while still preventing cumulative cost from
+being double counted. Adapters that explicitly return session-cumulative token
+usage continue to use Paperclip's existing session-delta path; this adapter
+returns per-run usage.
+
+GitHub documents Copilot CLI ACP support as public preview, and the
+[ACP server reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/acp-server)
+does not define a guaranteed token-usage payload for each prompt. Paperclip
+therefore accounts only for usage present in the runtime status or a current
+`usage_update` event. It does not infer omitted tokens:
+
+- a supplied receipt, including an explicit all-zero receipt, is `reported`;
+- an omitted receipt is `unavailable`, not zero;
+- an unchanged status breakdown without a current usage event is stale and is
+  not reused for a later run.
+
+Subscription-included Copilot runs create $0 ledger events even when token usage
+is unavailable. This preserves the fact that a run occurred and lets the UI say
+that GitHub omitted usage instead of presenting a misleading zero. Dollar
+budgets continue to evaluate billed cents. Token guardrails are separate
+policies that evaluate input plus cached-input plus output tokens; unavailable
+events cannot contribute an inferred token amount.
+
 ## Validation
 
 The image build runs the upstream adapter unit tests. It then verifies:
