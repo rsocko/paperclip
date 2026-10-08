@@ -576,6 +576,18 @@ describeEmbeddedPostgres("budgetService release gate enforcement", () => {
       amountLimit: 120,
       amountObserved: 130,
     });
+
+    await db
+      .update(agents)
+      .set({ status: "idle", pauseReason: null, pausedAt: null })
+      .where(eq(agents.id, agentId));
+    await expect(
+      service.getInvocationBlock(companyId, agentId),
+    ).resolves.toMatchObject({
+      scopeType: "agent",
+      scopeId: agentId,
+      reason: expect.stringContaining("token guardrail"),
+    });
   });
 
   it("hard-stops project work until a valid budget raise resumes it and overview reconciles ledger spend", async () => {
