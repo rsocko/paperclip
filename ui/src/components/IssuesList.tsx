@@ -605,7 +605,11 @@ function SubIssueProgressSummaryStrip({
   const totalTokens = costSummary
     ? costSummary.inputTokens + costSummary.cachedInputTokens + costSummary.outputTokens
     : 0;
-  const showCostSummary = !!costSummary && (costSummary.runCount > 0 || totalTokens > 0);
+  const showCostSummary =
+    !!costSummary &&
+    (costSummary.runCount > 0 ||
+      totalTokens > 0 ||
+      costSummary.usageUnavailableEventCount > 0);
 
   return (
     <div className="border border-border bg-background p-3">
@@ -631,7 +635,12 @@ function SubIssueProgressSummaryStrip({
                     costSummary.issueCount === 1 ? "" : "s"
                   }`}
                 >
-                  {formatTokens(totalTokens)} tokens
+                  {totalTokens > 0
+                    ? `${formatTokens(totalTokens)} tokens`
+                    : "Token usage unavailable"}
+                  {totalTokens > 0 && costSummary.usageUnavailableEventCount > 0
+                    ? ` · ${costSummary.usageUnavailableEventCount} unavailable`
+                    : ""}
                 </span>
                 <span className="text-muted-foreground tabular-nums">
                   {formatDurationMs(costSummary.runtimeMs)} runtime

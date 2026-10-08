@@ -1,0 +1,1 @@
+ALTER TABLE "cost_events" ADD COLUMN "usage_status" text DEFAULT 'reported' NOT NULL;

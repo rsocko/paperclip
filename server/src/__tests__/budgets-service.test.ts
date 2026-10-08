@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   agents,
@@ -531,6 +532,68 @@ describeEmbeddedPostgres("budgetService release gate enforcement", () => {
       expect(call.details).not.toHaveProperty("prompt");
       expect(call.details).not.toHaveProperty("message");
     }
+  });
+
+  it("evaluates token guardrails independently from zero-dollar subscription spend", async () => {
+    const { companyId, agentId } = await createBudgetFixture();
+    const service = budgetService(db);
+    const [tokenPolicy] = await db
+      .insert(budgetPolicies)
+      .values({
+        companyId,
+        scopeType: "agent",
+        scopeId: agentId,
+        metric: "total_tokens",
+        windowKind: "calendar_month_utc",
+        amount: 120,
+        warnPercent: 80,
+        hardStopEnabled: true,
+        notifyEnabled: true,
+        isActive: true,
+      })
+      .returning();
+    await db.insert(budgetPolicies).values({
+      companyId,
+      scopeType: "agent",
+      scopeId: agentId,
+      metric: "billed_cents",
+      windowKind: "calendar_month_utc",
+      amount: 1,
+      warnPercent: 80,
+      hardStopEnabled: true,
+      notifyEnabled: true,
+      isActive: true,
+    });
+
+    const event = await insertCostEvent({ companyId, agentId, costCents: 0 });
+    await service.evaluateCostEvent(event);
+
+    const incidents = await db.select().from(budgetIncidents);
+    expect(incidents.filter((incident) => incident.thresholdType === "soft")).toHaveLength(1);
+    expect(incidents.filter((incident) => incident.thresholdType === "hard")).toHaveLength(1);
+    expect(incidents.find((incident) => incident.thresholdType === "soft")).toMatchObject({
+      metric: "total_tokens",
+      status: "resolved",
+    });
+    expect(incidents.find((incident) => incident.thresholdType === "hard")).toMatchObject({
+      policyId: tokenPolicy!.id,
+      metric: "total_tokens",
+      thresholdType: "hard",
+      amountLimit: 120,
+      amountObserved: 130,
+    });
+
+    await db
+      .update(agents)
+      .set({ status: "idle", pauseReason: null, pausedAt: null })
+      .where(eq(agents.id, agentId));
+    await expect(
+      service.getInvocationBlock(companyId, agentId),
+    ).resolves.toMatchObject({
+      scopeType: "agent",
+      scopeId: agentId,
+      reason: expect.stringContaining("token guardrail"),
+    });
   });
 
   it("hard-stops project work until a valid budget raise resumes it and overview reconciles ledger spend", async () => {

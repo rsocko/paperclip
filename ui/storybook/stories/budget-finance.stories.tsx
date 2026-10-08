@@ -159,6 +159,8 @@ const providerRowsByProvider: Record<string, CostByProviderModel[]> = {
       subscriptionCachedInputTokens: 210_000,
       subscriptionInputTokens: 1_420_000,
       subscriptionOutputTokens: 385_000,
+      usageReportedEventCount: 38,
+      usageUnavailableEventCount: 0,
     },
     {
       provider: "anthropic",
@@ -174,6 +176,8 @@ const providerRowsByProvider: Record<string, CostByProviderModel[]> = {
       subscriptionCachedInputTokens: 0,
       subscriptionInputTokens: 0,
       subscriptionOutputTokens: 0,
+      usageReportedEventCount: 7,
+      usageUnavailableEventCount: 0,
     },
   ],
   openai: [
@@ -191,6 +195,8 @@ const providerRowsByProvider: Record<string, CostByProviderModel[]> = {
       subscriptionCachedInputTokens: 164_000,
       subscriptionInputTokens: 1_050_000,
       subscriptionOutputTokens: 318_000,
+      usageReportedEventCount: 26,
+      usageUnavailableEventCount: 0,
     },
     {
       provider: "openai",
@@ -206,6 +212,8 @@ const providerRowsByProvider: Record<string, CostByProviderModel[]> = {
       subscriptionCachedInputTokens: 91_000,
       subscriptionInputTokens: 410_000,
       subscriptionOutputTokens: 160_000,
+      usageReportedEventCount: 21,
+      usageUnavailableEventCount: 0,
     },
   ],
   openrouter: [
@@ -223,6 +231,8 @@ const providerRowsByProvider: Record<string, CostByProviderModel[]> = {
       subscriptionCachedInputTokens: 0,
       subscriptionInputTokens: 0,
       subscriptionOutputTokens: 0,
+      usageReportedEventCount: 19,
+      usageUnavailableEventCount: 0,
     },
     {
       provider: "google",
@@ -238,25 +248,27 @@ const providerRowsByProvider: Record<string, CostByProviderModel[]> = {
       subscriptionCachedInputTokens: 0,
       subscriptionInputTokens: 0,
       subscriptionOutputTokens: 0,
+      usageReportedEventCount: 11,
+      usageUnavailableEventCount: 0,
     },
   ],
 };
 
 const providerWindowRows: Record<string, CostWindowSpendRow[]> = {
   anthropic: [
-    { provider: "anthropic", biller: "anthropic", window: "5h", windowHours: 5, costCents: 1_240, inputTokens: 82_000, cachedInputTokens: 11_000, outputTokens: 19_000 },
-    { provider: "anthropic", biller: "anthropic", window: "24h", windowHours: 24, costCents: 3_870, inputTokens: 218_000, cachedInputTokens: 32_000, outputTokens: 64_000 },
-    { provider: "anthropic", biller: "anthropic", window: "7d", windowHours: 168, costCents: 11_240, inputTokens: 1_700_000, cachedInputTokens: 245_000, outputTokens: 477_000 },
+    { provider: "anthropic", biller: "anthropic", window: "5h", windowHours: 5, costCents: 1_240, inputTokens: 82_000, cachedInputTokens: 11_000, outputTokens: 19_000, usageReportedEventCount: 5, usageUnavailableEventCount: 0 },
+    { provider: "anthropic", biller: "anthropic", window: "24h", windowHours: 24, costCents: 3_870, inputTokens: 218_000, cachedInputTokens: 32_000, outputTokens: 64_000, usageReportedEventCount: 12, usageUnavailableEventCount: 0 },
+    { provider: "anthropic", biller: "anthropic", window: "7d", windowHours: 168, costCents: 11_240, inputTokens: 1_700_000, cachedInputTokens: 245_000, outputTokens: 477_000, usageReportedEventCount: 45, usageUnavailableEventCount: 0 },
   ],
   openai: [
-    { provider: "openai", biller: "openai", window: "5h", windowHours: 5, costCents: 4_920, inputTokens: 148_000, cachedInputTokens: 18_000, outputTokens: 56_000 },
-    { provider: "openai", biller: "openai", window: "24h", windowHours: 24, costCents: 10_430, inputTokens: 398_000, cachedInputTokens: 52_000, outputTokens: 130_000 },
-    { provider: "openai", biller: "openai", window: "7d", windowHours: 168, costCents: 18_900, inputTokens: 1_670_000, cachedInputTokens: 255_000, outputTokens: 568_000 },
+    { provider: "openai", biller: "openai", window: "5h", windowHours: 5, costCents: 4_920, inputTokens: 148_000, cachedInputTokens: 18_000, outputTokens: 56_000, usageReportedEventCount: 7, usageUnavailableEventCount: 0 },
+    { provider: "openai", biller: "openai", window: "24h", windowHours: 24, costCents: 10_430, inputTokens: 398_000, cachedInputTokens: 52_000, outputTokens: 130_000, usageReportedEventCount: 15, usageUnavailableEventCount: 0 },
+    { provider: "openai", biller: "openai", window: "7d", windowHours: 168, costCents: 18_900, inputTokens: 1_670_000, cachedInputTokens: 255_000, outputTokens: 568_000, usageReportedEventCount: 47, usageUnavailableEventCount: 0 },
   ],
   openrouter: [
-    { provider: "openrouter", biller: "openrouter", window: "5h", windowHours: 5, costCents: 7_880, inputTokens: 210_000, cachedInputTokens: 20_000, outputTokens: 73_000 },
-    { provider: "openrouter", biller: "openrouter", window: "24h", windowHours: 24, costCents: 14_630, inputTokens: 506_000, cachedInputTokens: 51_000, outputTokens: 150_000 },
-    { provider: "openrouter", biller: "openrouter", window: "7d", windowHours: 168, costCents: 31_560, inputTokens: 1_190_000, cachedInputTokens: 164_000, outputTokens: 338_000 },
+    { provider: "openrouter", biller: "openrouter", window: "5h", windowHours: 5, costCents: 7_880, inputTokens: 210_000, cachedInputTokens: 20_000, outputTokens: 73_000, usageReportedEventCount: 8, usageUnavailableEventCount: 0 },
+    { provider: "openrouter", biller: "openrouter", window: "24h", windowHours: 24, costCents: 14_630, inputTokens: 506_000, cachedInputTokens: 51_000, outputTokens: 150_000, usageReportedEventCount: 16, usageUnavailableEventCount: 0 },
+    { provider: "openrouter", biller: "openrouter", window: "7d", windowHours: 168, costCents: 31_560, inputTokens: 1_190_000, cachedInputTokens: 164_000, outputTokens: 338_000, usageReportedEventCount: 30, usageUnavailableEventCount: 0 },
   ],
 };
 
@@ -294,6 +306,8 @@ const billerSpendRows: Array<{
       subscriptionCachedInputTokens: 210_000,
       subscriptionInputTokens: 1_420_000,
       subscriptionOutputTokens: 385_000,
+      usageReportedEventCount: 45,
+      usageUnavailableEventCount: 0,
       providerCount: 1,
       modelCount: 2,
     },
@@ -314,6 +328,8 @@ const billerSpendRows: Array<{
       subscriptionCachedInputTokens: 255_000,
       subscriptionInputTokens: 1_460_000,
       subscriptionOutputTokens: 478_000,
+      usageReportedEventCount: 47,
+      usageUnavailableEventCount: 0,
       providerCount: 1,
       modelCount: 2,
     },
@@ -334,6 +350,8 @@ const billerSpendRows: Array<{
       subscriptionCachedInputTokens: 0,
       subscriptionInputTokens: 0,
       subscriptionOutputTokens: 0,
+      usageReportedEventCount: 30,
+      usageUnavailableEventCount: 0,
       providerCount: 2,
       modelCount: 2,
     },

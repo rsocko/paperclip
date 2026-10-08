@@ -9,6 +9,7 @@ import {
   costEvents,
   projects,
 } from "@paperclipai/db";
+import { BUDGET_METRICS } from "@paperclipai/shared";
 import type {
   BudgetIncident,
   BudgetIncidentResolutionInput,
@@ -33,6 +34,10 @@ type ScopeRecord = {
 };
 
 type PolicyRow = typeof budgetPolicies.$inferSelect;
+
+function isBudgetMetric(metric: string): metric is BudgetMetric {
+  return BUDGET_METRICS.some((candidate) => candidate === metric);
+}
 type IncidentRow = typeof budgetIncidents.$inferSelect;
 
 export type BudgetEnforcementScope = {
@@ -144,8 +149,6 @@ async function computeObservedAmount(
   db: Db,
   policy: Pick<PolicyRow, "companyId" | "scopeType" | "scopeId" | "windowKind" | "metric">,
 ) {
-  if (policy.metric !== "billed_cents") return 0;
-
   const conditions = [eq(costEvents.companyId, policy.companyId)];
   if (policy.scopeType === "agent") conditions.push(eq(costEvents.agentId, policy.scopeId));
   if (policy.scopeType === "project") conditions.push(eq(costEvents.projectId, policy.scopeId));
@@ -157,7 +160,14 @@ async function computeObservedAmount(
 
   const [row] = await db
     .select({
-      total: sql<number>`coalesce(sum(${costEvents.costCents}), 0)::double precision`,
+      total:
+        policy.metric === "total_tokens"
+          ? sql<number>`(
+              coalesce(sum(${costEvents.inputTokens}), 0) +
+              coalesce(sum(${costEvents.cachedInputTokens}), 0) +
+              coalesce(sum(${costEvents.outputTokens}), 0)
+            )::double precision`
+          : sql<number>`coalesce(sum(${costEvents.costCents}), 0)::double precision`,
     })
     .from(costEvents)
     .where(and(...conditions));
@@ -312,6 +322,37 @@ export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
       .from(budgetPolicies)
       .where(eq(budgetPolicies.companyId, companyId))
       .orderBy(desc(budgetPolicies.updatedAt));
+  }
+
+  async function findExceededHardStopPolicy(
+    companyId: string,
+    scopeType: BudgetScopeType,
+    scopeId: string,
+  ) {
+    const policies = await db
+      .select()
+      .from(budgetPolicies)
+      .where(
+        and(
+          eq(budgetPolicies.companyId, companyId),
+          eq(budgetPolicies.scopeType, scopeType),
+          eq(budgetPolicies.scopeId, scopeId),
+          eq(budgetPolicies.isActive, true),
+        ),
+      );
+
+    for (const policy of policies) {
+      if (
+        !isBudgetMetric(policy.metric) ||
+        !policy.hardStopEnabled ||
+        policy.amount <= 0
+      ) {
+        continue;
+      }
+      const observed = await computeObservedAmount(db, policy);
+      if (observed >= policy.amount) return policy;
+    }
+    return null;
   }
 
   async function buildPolicySummary(policy: PolicyRow): Promise<BudgetPolicySummary> {
@@ -666,7 +707,12 @@ export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
       });
 
       for (const policy of relevantPolicies) {
-        if (policy.metric !== "billed_cents" || policy.amount <= 0) continue;
+        if (
+          !isBudgetMetric(policy.metric) ||
+          policy.amount <= 0
+        ) {
+          continue;
+        }
         const observedAmount = await computeObservedAmount(db, policy);
         const softThreshold = Math.ceil((policy.amount * policy.warnPercent) / 100);
 
@@ -754,29 +800,18 @@ export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
         };
       }
 
-      const companyPolicy = await db
-        .select()
-        .from(budgetPolicies)
-        .where(
-          and(
-            eq(budgetPolicies.companyId, companyId),
-            eq(budgetPolicies.scopeType, "company"),
-            eq(budgetPolicies.scopeId, companyId),
-            eq(budgetPolicies.isActive, true),
-            eq(budgetPolicies.metric, "billed_cents"),
-          ),
-        )
-        .then((rows) => rows[0] ?? null);
-      if (companyPolicy && companyPolicy.hardStopEnabled && companyPolicy.amount > 0) {
-        const observed = await computeObservedAmount(db, companyPolicy);
-        if (observed >= companyPolicy.amount) {
-          return {
-            scopeType: "company" as const,
-            scopeId: companyId,
-            scopeName: company.name,
-            reason: "Company cannot start new work because its budget hard-stop is exceeded.",
-          };
-        }
+      const companyPolicy = await findExceededHardStopPolicy(
+        companyId,
+        "company",
+        companyId,
+      );
+      if (companyPolicy) {
+        return {
+          scopeType: "company" as const,
+          scopeId: companyId,
+          scopeName: company.name,
+          reason: `Company cannot start new work because its ${companyPolicy.metric === "total_tokens" ? "token guardrail" : "budget"} hard-stop is exceeded.`,
+        };
       }
 
       if (agent.status === "paused" && agent.pauseReason === "budget") {
@@ -788,29 +823,18 @@ export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
         };
       }
 
-      const agentPolicy = await db
-        .select()
-        .from(budgetPolicies)
-        .where(
-          and(
-            eq(budgetPolicies.companyId, companyId),
-            eq(budgetPolicies.scopeType, "agent"),
-            eq(budgetPolicies.scopeId, agentId),
-            eq(budgetPolicies.isActive, true),
-            eq(budgetPolicies.metric, "billed_cents"),
-          ),
-        )
-        .then((rows) => rows[0] ?? null);
-      if (agentPolicy && agentPolicy.hardStopEnabled && agentPolicy.amount > 0) {
-        const observed = await computeObservedAmount(db, agentPolicy);
-        if (observed >= agentPolicy.amount) {
-          return {
-            scopeType: "agent" as const,
-            scopeId: agentId,
-            scopeName: agent.name,
-            reason: "Agent cannot start because its budget hard-stop is still exceeded.",
-          };
-        }
+      const agentPolicy = await findExceededHardStopPolicy(
+        companyId,
+        "agent",
+        agentId,
+      );
+      if (agentPolicy) {
+        return {
+          scopeType: "agent" as const,
+          scopeId: agentId,
+          scopeName: agent.name,
+          reason: `Agent cannot start because its ${agentPolicy.metric === "total_tokens" ? "token guardrail" : "budget"} hard-stop is still exceeded.`,
+        };
       }
 
       const candidateProjectId = context?.projectId ?? null;
@@ -829,29 +853,18 @@ export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
         .then((rows) => rows[0] ?? null);
 
       if (!project || project.companyId !== companyId) return null;
-      const projectPolicy = await db
-        .select()
-        .from(budgetPolicies)
-        .where(
-          and(
-            eq(budgetPolicies.companyId, companyId),
-            eq(budgetPolicies.scopeType, "project"),
-            eq(budgetPolicies.scopeId, project.id),
-            eq(budgetPolicies.isActive, true),
-            eq(budgetPolicies.metric, "billed_cents"),
-          ),
-        )
-        .then((rows) => rows[0] ?? null);
-      if (projectPolicy && projectPolicy.hardStopEnabled && projectPolicy.amount > 0) {
-        const observed = await computeObservedAmount(db, projectPolicy);
-        if (observed >= projectPolicy.amount) {
-          return {
-            scopeType: "project" as const,
-            scopeId: project.id,
-            scopeName: project.name,
-            reason: "Project cannot start work because its budget hard-stop is still exceeded.",
-          };
-        }
+      const projectPolicy = await findExceededHardStopPolicy(
+        companyId,
+        "project",
+        project.id,
+      );
+      if (projectPolicy) {
+        return {
+          scopeType: "project" as const,
+          scopeId: project.id,
+          scopeName: project.name,
+          reason: `Project cannot start work because its ${projectPolicy.metric === "total_tokens" ? "token guardrail" : "budget"} hard-stop is still exceeded.`,
+        };
       }
 
       if (!project.pausedAt || project.pauseReason !== "budget") return null;

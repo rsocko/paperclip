@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   resolveCacheAdjustedCostUsd,
   resolveLedgerCostStatus,
+  resolveLedgerUsageStatus,
+  shouldCreateLedgerEvent,
 } from "../services/heartbeat.js";
 
 describe("heartbeat cost accounting", () => {
@@ -84,5 +86,50 @@ describe("heartbeat cost accounting", () => {
       costUsd: 3.1,
       cacheAdjustedCostUsd: 1.5,
     })).toBe(1.5);
+  });
+
+  it("creates a zero-dollar subscription ledger event when Copilot reports tokens", () => {
+    const usage = {
+      inputTokens: 2_090,
+      cachedInputTokens: 300_000,
+      outputTokens: 77_000,
+    };
+    expect(shouldCreateLedgerEvent({
+      billingType: "subscription_included",
+      costCents: 0,
+      usage,
+    })).toBe(true);
+    expect(resolveLedgerUsageStatus(usage)).toBe("reported");
+  });
+
+  it("creates an explicit unavailable subscription event when Copilot omits usage", () => {
+    expect(shouldCreateLedgerEvent({
+      billingType: "subscription_included",
+      costCents: 0,
+      usage: null,
+    })).toBe(true);
+    expect(resolveLedgerUsageStatus(null)).toBe("unavailable");
+  });
+
+  it("distinguishes an explicit zero-valued usage receipt from unavailable usage", () => {
+    const usage = {
+      inputTokens: 0,
+      cachedInputTokens: 0,
+      outputTokens: 0,
+    };
+    expect(shouldCreateLedgerEvent({
+      billingType: "subscription_included",
+      costCents: 0,
+      usage,
+    })).toBe(true);
+    expect(resolveLedgerUsageStatus(usage)).toBe("reported");
+  });
+
+  it("does not create empty unknown-billing events for other adapters", () => {
+    expect(shouldCreateLedgerEvent({
+      billingType: "unknown",
+      costCents: 0,
+      usage: null,
+    })).toBe(false);
   });
 });

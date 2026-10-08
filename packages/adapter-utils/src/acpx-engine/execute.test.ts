@@ -3050,6 +3050,54 @@ describe("summarizeAcpxTurnUsage", () => {
     expect(summary.cumulativeCostUsd).toBeCloseTo(0.3);
   });
 
+  it("keeps resumed-session token breakdowns per-run while deltaing cumulative cost", () => {
+    const firstResumedRun = summarizeAcpxTurnUsage({
+      preStatus: {
+        usage: {
+          cumulative: { inputTokens: 10_000, cachedReadTokens: 4_000, outputTokens: 2_000 },
+          cost: { amount: 3.25, currency: "USD" },
+        },
+      },
+      postStatus: {
+        usage: {
+          cumulative: { inputTokens: 700, cachedReadTokens: 500, outputTokens: 80 },
+          cost: { amount: 3.75, currency: "USD" },
+        },
+      },
+      eventBreakdown: null,
+      eventCostUsd: null,
+    });
+    const secondResumedRun = summarizeAcpxTurnUsage({
+      preStatus: {
+        usage: {
+          cumulative: { inputTokens: 700, cachedReadTokens: 500, outputTokens: 80 },
+          cost: { amount: 3.75, currency: "USD" },
+        },
+      },
+      postStatus: {
+        usage: {
+          cumulative: { inputTokens: 900, cachedReadTokens: 650, outputTokens: 100 },
+          cost: { amount: 4, currency: "USD" },
+        },
+      },
+      eventBreakdown: null,
+      eventCostUsd: null,
+    });
+
+    expect(firstResumedRun.usage).toEqual({
+      inputTokens: 700,
+      cachedInputTokens: 500,
+      outputTokens: 80,
+    });
+    expect(firstResumedRun.costUsd).toBeCloseTo(0.5);
+    expect(secondResumedRun.usage).toEqual({
+      inputTokens: 900,
+      cachedInputTokens: 650,
+      outputTokens: 100,
+    });
+    expect(secondResumedRun.costUsd).toBeCloseTo(0.25);
+  });
+
   it("ignores non-USD cost amounts", () => {
     const summary = summarizeAcpxTurnUsage({
       preStatus: null,
