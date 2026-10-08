@@ -795,7 +795,7 @@ export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
           scopeName: company.name,
           reason:
             company.pauseReason === "budget"
-              ? "Company is paused because a budget or token hard-stop was reached."
+              ? "Company is paused because its budget hard-stop was reached."
               : "Company is paused and cannot start new work.",
         };
       }
@@ -819,7 +819,7 @@ export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
           scopeType: "agent" as const,
           scopeId: agentId,
           scopeName: agent.name,
-          reason: "Agent is paused because a budget or token hard-stop was reached.",
+          reason: "Agent is paused because its budget hard-stop was reached.",
         };
       }
 
@@ -872,7 +872,7 @@ export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
         scopeType: "project" as const,
         scopeId: project.id,
         scopeName: project.name,
-        reason: "Project is paused because a budget or token hard-stop was reached.",
+        reason: "Project is paused because its budget hard-stop was reached.",
       };
     },
 

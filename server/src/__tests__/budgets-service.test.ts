@@ -568,8 +568,13 @@ describeEmbeddedPostgres("budgetService release gate enforcement", () => {
     await service.evaluateCostEvent(event);
 
     const incidents = await db.select().from(budgetIncidents);
-    expect(incidents).toHaveLength(1);
-    expect(incidents[0]).toMatchObject({
+    expect(incidents.filter((incident) => incident.thresholdType === "soft")).toHaveLength(1);
+    expect(incidents.filter((incident) => incident.thresholdType === "hard")).toHaveLength(1);
+    expect(incidents.find((incident) => incident.thresholdType === "soft")).toMatchObject({
+      metric: "total_tokens",
+      status: "resolved",
+    });
+    expect(incidents.find((incident) => incident.thresholdType === "hard")).toMatchObject({
       policyId: tokenPolicy!.id,
       metric: "total_tokens",
       thresholdType: "hard",
