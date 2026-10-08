@@ -68,8 +68,21 @@ settings, and extra arguments remain agent-level configuration.
 
 The model selector reads the adapter model API. Set
 `PAPERCLIP_ADAPTER_MODELS` to declare the available `copilot_local` models.
-The selector preserves an `auto` entry from that list and accepts a manual
-model ID. Paperclip does not perform authenticated model enumeration.
+The deployment image declares the model catalog currently exposed by GitHub
+Copilot Desktop, including its Claude, GPT, MAI, Gemini, and Grok choices. The
+selector preserves an `auto` entry from that list and accepts a manual model ID.
+The environment variable can replace the image default for a specific
+deployment.
+
+Authenticated, account-specific model discovery remains future work. Paperclip
+does not currently enumerate the Copilot account's models dynamically, so the
+static catalog can include models unavailable to a particular account or omit a
+newly released model until the deployment configuration is refreshed.
+
+Reasoning effort and context window are agent configuration fields. The adapter
+passes non-empty effort values to `copilot --effort` and maps the context-window
+selection to `copilot --context default|long_context`. Model support still
+depends on the authenticated account and selected model.
 
 ## Token accounting
 

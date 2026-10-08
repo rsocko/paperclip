@@ -1,0 +1,37 @@
+diff --git a/src/index.ts b/src/index.ts
+index 8b3a321..8d3e472 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -29,6 +29,7 @@ Core fields:
+ - instructionsFilePath (string, optional): absolute markdown instructions file prepended to every run prompt.
+ - model (string, optional): Copilot model id. Defaults to "auto"; availability depends on account and enterprise policy.
+ - reasoningEffort (string, optional): none|minimal|low|medium|high|xhigh|max.
++- contextTier (string, optional): default|long_context. Selects the Copilot CLI context window tier.
+ - promptTemplate (string, optional): run prompt template.
+ - command (string, optional): Copilot CLI executable, defaults to "copilot".
+ - extraArgs (string[], optional): additional Copilot ACP server arguments.
+diff --git a/src/server/config-schema.ts b/src/server/config-schema.ts
+index 7d714ed..b061ead 100644
+--- a/src/server/config-schema.ts
++++ b/src/server/config-schema.ts
+@@ -44,9 +44,20 @@ export function getConfigSchema(): AdapterConfigSchema {
+           { value: "max", label: "Maximum" },
+         ],
+       },
++      {
++        key: "contextTier",
++        label: "Context window",
++        type: "select",
++        default: "default",
++        options: [
++          { value: "default", label: "Default" },
++          { value: "long_context", label: "Long context" },
++        ],
++        hint: "Selects the context window tier supported by the chosen Copilot model.",
++      },
+       {
+         key: "command",
+         label: "Copilot command",
+         type: "text",
+         default: "copilot",
+         hint: "Executable name or absolute path.",

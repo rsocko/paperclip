@@ -339,7 +339,10 @@ RUN set -eux; \
     rm /tmp/copilot-local-adapter.tar.gz package-lock.json
 COPY docker/copilot-local-adapter/build-package.json ./package.json
 COPY docker/copilot-local-adapter/pnpm-lock.yaml ./
+COPY docker/copilot-local-adapter/context-tier.patch ./
 RUN set -eux; \
+    git apply --check context-tier.patch; \
+    git apply context-tier.patch; \
     pnpm install --ignore-workspace --frozen-lockfile --ignore-scripts; \
     pnpm test; \
     pnpm build; \
@@ -357,7 +360,8 @@ RUN set -eux; \
 FROM production AS copilot-local
 ARG COPILOT_CLI_VERSION=1.0.90
 ARG COPILOT_ADAPTER_SOURCE_COMMIT=69a2c6e399d342ce59cc7d3d27084d936b55a705
-ENV COPILOT_AUTO_UPDATE=false
+ENV COPILOT_AUTO_UPDATE=false \
+    PAPERCLIP_ADAPTER_MODELS='{"copilot_local":[{"id":"auto","label":"Auto"},{"id":"claude-haiku-5.5","label":"Claude Haiku 5.5"},{"id":"claude-haiku-4.5","label":"Claude Haiku 4.5"},{"id":"claude-opus-5.5","label":"Claude Opus 5.5"},{"id":"claude-opus-5","label":"Claude Opus 5"},{"id":"claude-opus-4.8","label":"Claude Opus 4.8"},{"id":"claude-sonnet-5.5","label":"Claude Sonnet 5.5"},{"id":"claude-sonnet-5","label":"Claude Sonnet 5"},{"id":"gpt-6.1-sol","label":"GPT-6.1 Sol"},{"id":"gpt-6-astra","label":"GPT-6 Astra"},{"id":"gpt-6-luna","label":"GPT-6 Luna"},{"id":"gpt-6-sol","label":"GPT-6 Sol"},{"id":"gpt-5.6-luna","label":"GPT-5.6 Luna"},{"id":"gpt-5.6-sol","label":"GPT-5.6 Sol"},{"id":"gpt-5.6-sol-fast","label":"GPT-5.6 Sol Fast"},{"id":"gpt-5.6-terra","label":"GPT-5.6 Terra"},{"id":"gpt-5.5","label":"GPT-5.5"},{"id":"gpt-5.4","label":"GPT-5.4"},{"id":"gpt-5.4-mini","label":"GPT-5.4 mini"},{"id":"gpt-5.3-codex","label":"GPT-5.3-Codex"},{"id":"gpt-5-mini","label":"GPT-5 mini"},{"id":"mai-code-1.1-flash","label":"MAI-Code-1.1-Flash"},{"id":"gemini-3.8-flash","label":"Gemini 3.8 Flash"},{"id":"gemini-3.7-flash","label":"Gemini 3.7 Flash"},{"id":"grok-4.7","label":"Grok 4.7"},{"id":"grok-4.6","label":"Grok 4.6"},{"id":"grok-4.5","label":"Grok 4.5"}]}'
 RUN npm install --global --omit=dev --ignore-scripts "@github/copilot@${COPILOT_CLI_VERSION}"
 COPY --from=copilot-local-adapter-build /tmp/copilot-local-adapter /opt/paperclip/adapters/copilot-local
 COPY scripts/assert-copilot-local-image.sh /usr/local/bin/assert-copilot-local-image
